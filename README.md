@@ -26,9 +26,9 @@ This is a learning journey — from zero to a fully playable isometric farming g
 | EP01 | Comecei a Programar a Colheita Feliz | MSYS2 setup, MinGW-w64, SDL2 + SDL2_image + SDL2_mixer + SDL2_ttf + nlohmann_json, CMake, compilation test | [`ep01-setup-sdl2`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep01-setup-sdl2) | [Watch](https://youtu.be/CXxo-gZYqQM) |
 | EP02 | Criei a Janela e Game Loop | SDL_CreateWindow 1280x720, SDL_CreateRenderer, game loop, delta time, FPS control, green background | [`ep02-janela-gameloop`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep02-janela-gameloop) | [Watch](https://youtu.be/rf4Eg0WMPH0) |
 | EP03 | Coloquei o Primeiro Sprite | carregarTextura(), IMG_Load, SDL_CreateTextureFromSurface, SDL_RenderCopy, keyboard movement with arrow keys | [`ep03-sprites-movimento`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep03-sprites-movimento) | [Watch](https://youtu.be/egJIi6eT0dc) |
-| EP04 | Isométrico | Isometric fundamentals, coordinate conversion, mouse picking | [`ep04-isometrico`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep04-isometrico) | *Coming Soon* |
-| EP05 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | [`ep05-tilemap-camera`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep05-tilemap-camera) | *Coming Soon* |
-| EP06 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | [`ep06-personagem-animacao`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep06-personagem-animacao) | *Coming Soon* |
+| EP04 | Isométrico | Isometric fundamentals, coordinate conversion, mouse picking | *Coming Soon* | *Coming Soon* |
+| EP05 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | *Coming Soon* | *Coming Soon* |
+| EP06 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
 
 ---
 
@@ -96,7 +96,7 @@ git clone https://github.com/harlleybastos/colheita-feliz-cpp.git
 cd colheita-feliz-cpp
 
 # Configure
-cmake -B build -G Ninja
+cmake -S . -B build -G Ninja
 
 # Build
 cmake --build build
@@ -117,7 +117,7 @@ Each branch corresponds to a specific episode of the video series. The code evol
 - **`ep01-setup-sdl2`** — Code as it was at the end of Episode 01.
 - **`ep02-janela-gameloop`** — Code as it was at the end of Episode 02.
 - **`ep03-sprites-movimento`** — Code as it was at the end of Episode 03.
-- **`ep04-isometrico`** through **`ep06-personagem-animacao`** — Upcoming episodes (branches created as placeholders).
+- **EP04 through EP06** — Upcoming episodes (branches will be created as they are published).
 
 To follow along with a specific episode, checkout its branch:
 
