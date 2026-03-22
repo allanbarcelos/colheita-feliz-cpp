@@ -23,12 +23,12 @@ This is a learning journey — from zero to a fully playable isometric farming g
 
 | Episode | Title | Topics | Branch | YouTube |
 |---------|-------|--------|--------|---------|
-| EP01 | Configuração do Ambiente | MSYS2 setup, SDL2 + CMake, compilation test, library initialization | [`ep01-setup-sdl2`](../../tree/ep01-setup-sdl2) | [Watch](https://youtu.be/4BYEflGqU7o) |
-| EP02 | Janela + Game Loop | SDL_CreateWindow, SDL_CreateRenderer, game loop, delta time, FPS control | [`ep02-janela-gameloop`](../../tree/ep02-janela-gameloop) | [Watch](#) |
-| EP03 | Sprites + Movimento | Load textures, render sprites, keyboard movement with arrow keys | [`ep03-sprites-movimento`](../../tree/ep03-sprites-movimento) | [Watch](#) |
-| EP04 | Isométrico | Isometric fundamentals, coordinate conversion, mouse picking | [`ep04-isometrico`](../../tree/ep04-isometrico) | *Coming Soon* |
-| EP05 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | [`ep05-tilemap-camera`](../../tree/ep05-tilemap-camera) | *Coming Soon* |
-| EP06 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | [`ep06-personagem-animacao`](../../tree/ep06-personagem-animacao) | *Coming Soon* |
+| EP01 | Comecei a Programar a Colheita Feliz | MSYS2 setup, MinGW-w64, SDL2 + SDL2_image + SDL2_mixer + SDL2_ttf + nlohmann_json, CMake, compilation test | [`ep01-setup-sdl2`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep01-setup-sdl2) | [Watch](https://youtu.be/CXxo-gZYqQM) |
+| EP02 | Criei a Janela e Game Loop | SDL_CreateWindow 1280x720, SDL_CreateRenderer, game loop, delta time, FPS control, green background | [`ep02-janela-gameloop`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep02-janela-gameloop) | [Watch](https://youtu.be/rf4Eg0WMPH0) |
+| EP03 | Coloquei o Primeiro Sprite | carregarTextura(), IMG_Load, SDL_CreateTextureFromSurface, SDL_RenderCopy, keyboard movement with arrow keys | [`ep03-sprites-movimento`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep03-sprites-movimento) | [Watch](https://youtu.be/egJIi6eT0dc) |
+| EP04 | Isométrico | Isometric fundamentals, coordinate conversion, mouse picking | [`ep04-isometrico`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep04-isometrico) | *Coming Soon* |
+| EP05 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | [`ep05-tilemap-camera`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep05-tilemap-camera) | *Coming Soon* |
+| EP06 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | [`ep06-personagem-animacao`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep06-personagem-animacao) | *Coming Soon* |
 
 ---
 
@@ -87,13 +87,13 @@ pacman -S mingw-w64-ucrt-x86_64-gcc \
           mingw-w64-ucrt-x86_64-nlohmann-json
 ```
 
-> 📄 A **free PDF setup guide** with screenshots is available — check the description of [EP01 on YouTube](https://youtu.be/4BYEflGqU7o).
+> 📄 A **free PDF setup guide** with screenshots is available — check the description of [EP01 on YouTube](https://youtu.be/CXxo-gZYqQM).
 
 ### Clone & Build
 
 ```bash
-git clone https://github.com/harlleybastos/ColheitaFeliz.git
-cd ColheitaFeliz
+git clone https://github.com/harlleybastos/colheita-feliz-cpp.git
+cd colheita-feliz-cpp
 
 # Configure
 cmake -B build -G Ninja

@@ -194,4 +194,4 @@ E que `C:\msys64\ucrt64\bin` está no PATH do Windows.
 - [Documentação oficial do SDL2](https://wiki.libsdl.org/)
 - [MSYS2 — Guia de pacotes](https://packages.msys2.org/)
 - [Série no YouTube — @harlleybastos](https://www.youtube.com/@harlleybastos)
-- [PDF de configuração gratuito](https://youtu.be/4BYEflGqU7o) (link na descrição do EP01)
+- [PDF de configuração gratuito](https://youtu.be/CXxo-gZYqQM) (link na descrição do EP01)
