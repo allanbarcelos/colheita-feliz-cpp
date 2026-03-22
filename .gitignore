@@ -1,0 +1,23 @@
+# Build output
+build/
+*.exe
+*.o
+*.obj
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE / Editor
+.vscode/
+.cache/
+
+# Windows DLLs (shipped separately)
+*.dll
+
+# Misc
+*.log
+*.swp
+*~
