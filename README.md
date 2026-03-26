@@ -26,7 +26,7 @@ This is a learning journey — from zero to a fully playable isometric farming g
 | EP01 | Comecei a Programar a Colheita Feliz | MSYS2 setup, MinGW-w64, SDL2 + SDL2_image + SDL2_mixer + SDL2_ttf + nlohmann_json, CMake, compilation test | [`ep01-setup-sdl2`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep01-setup-sdl2) | [Watch](https://youtu.be/CXxo-gZYqQM) |
 | EP02 | Criei a Janela e Game Loop | SDL_CreateWindow 1280x720, SDL_CreateRenderer, game loop, delta time, FPS control, green background | [`ep02-janela-gameloop`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep02-janela-gameloop) | [Watch](https://youtu.be/rf4Eg0WMPH0) |
 | EP03 | Coloquei o Primeiro Sprite | carregarTextura(), IMG_Load, SDL_CreateTextureFromSurface, SDL_RenderCopy, keyboard movement with arrow keys | [`ep03-sprites-movimento`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep03-sprites-movimento) | [Watch](https://youtu.be/egJIi6eT0dc) |
-| EP04 | Isométrico | Isometric fundamentals, coordinate conversion, mouse picking | *Coming Soon* | *Coming Soon* |
+| EP04 | Projeção Isométrica da Fazenda | Isometric projection (isoParaTelaX/Y), inverse formula (telaParaGridColuna/Linha), mouse picking, farm grid 7x5, EstadoCanteiro enum, diamond rendering | [`ep04-isometrico`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep04-isometrico) | *Coming Soon* |
 | EP05 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | *Coming Soon* | *Coming Soon* |
 | EP06 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
 
@@ -113,11 +113,12 @@ cmake --build build
 
 Each branch corresponds to a specific episode of the video series. The code evolves incrementally — each episode builds on top of the previous one.
 
-- **`main`** — Always contains the latest stable code (currently up to EP03).
+- **`main`** — Always contains the latest stable code (currently up to EP04).
 - **`ep01-setup-sdl2`** — Code as it was at the end of Episode 01.
 - **`ep02-janela-gameloop`** — Code as it was at the end of Episode 02.
 - **`ep03-sprites-movimento`** — Code as it was at the end of Episode 03.
-- **EP04 through EP06** — Upcoming episodes (branches will be created as they are published).
+- **`ep04-isometrico`** — Code as it was at the end of Episode 04.
+- **EP05 through EP06** — Upcoming episodes (branches will be created as they are published).
 
 To follow along with a specific episode, checkout its branch:
 
