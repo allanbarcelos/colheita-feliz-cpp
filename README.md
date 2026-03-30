@@ -4,7 +4,7 @@
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue?logo=cplusplus)
 ![SDL2](https://img.shields.io/badge/SDL2-2.x-green?logo=data:image/svg+xml;base64,)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![License](https://img.shields.io/badge/License-Source_Available_NC-yellow)
 [![YouTube](https://img.shields.io/badge/YouTube-@harlleybastos-red?logo=youtube)](https://www.youtube.com/@harlleybastos)
 
 ---
@@ -27,8 +27,9 @@ This is a learning journey — from zero to a fully playable isometric farming g
 | EP02 | Criei a Janela e Game Loop | SDL_CreateWindow 1280x720, SDL_CreateRenderer, game loop, delta time, FPS control, green background | [`ep02-janela-gameloop`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep02-janela-gameloop) | [Watch](https://youtu.be/rf4Eg0WMPH0) |
 | EP03 | Coloquei o Primeiro Sprite | carregarTextura(), IMG_Load, SDL_CreateTextureFromSurface, SDL_RenderCopy, keyboard movement with arrow keys | [`ep03-sprites-movimento`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep03-sprites-movimento) | [Watch](https://youtu.be/egJIi6eT0dc) |
 | EP04 | Projeção Isométrica da Fazenda | Isometric projection (isoParaTelaX/Y), inverse formula (telaParaGridColuna/Linha), mouse picking, farm grid 7x5, EstadoCanteiro enum, diamond rendering | [`ep04-isometrico`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep04-isometrico) | [Watch](https://youtu.be/qL7-9T1GlBM) |
-| EP05 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | *Coming Soon* | *Coming Soon* |
-| EP06 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
+| EP05 | Coloquei Sprites Reais na Fazenda | Tileset PNG sprites, background image, decorations (casa, casinha do cachorro), code reorganization (Constantes.h, Tipos.h, Iso.h, Desenho.h, Assets.h), canteiro state transitions on click | [`ep05-tileset-sprites`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep05-tileset-sprites) | [Watch](https://youtu.be/D4Fu3haQnF4) |
+| EP06 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | *Coming Soon* | *Coming Soon* |
+| EP07 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
 
 ---
 
@@ -52,13 +53,26 @@ This is a learning journey — from zero to a fully playable isometric farming g
 ```
 ColheitaFeliz/
 ├── src/
-│   └── main.cpp
+│   ├── main.cpp          ← game loop, initialization, events
+│   ├── Constantes.h      ← all game constants
+│   ├── Tipos.h           ← enums, structs (EstadoCanteiro, Canteiro, Assets)
+│   ├── Iso.h             ← isometric conversion functions
+│   ├── Desenho.h         ← drawing functions (diamonds, tiles)
+│   └── Assets.h          ← sprite loading and cleanup
 ├── assets/
+│   ├── background/
+│   │   └── farm.jpg
 │   └── sprites/
-│       ├── teste.png
-│       ├── jogador.png
-│       ├── jogador_spritesheet.png
-│       └── tileset.png
+│       ├── tile_grama.png
+│       ├── tile_grama_escuro.png
+│       ├── tile_terra.png
+│       ├── tile_terra_seca.png
+│       ├── tile_terra_vermelha.png
+│       ├── tile_bloqueado.png
+│       ├── tile_restos.png
+│       ├── casa.png
+│       ├── casinha_cachorro.png
+│       └── cerca.png
 ├── build/
 ├── CMakeLists.txt
 ├── SETUP_GUIDE.md
@@ -113,12 +127,13 @@ cmake --build build
 
 Each branch corresponds to a specific episode of the video series. The code evolves incrementally — each episode builds on top of the previous one.
 
-- **`main`** — Always contains the latest stable code (currently up to EP04).
+- **`main`** — Always contains the latest stable code (currently up to EP05).
 - **`ep01-setup-sdl2`** — Code as it was at the end of Episode 01.
 - **`ep02-janela-gameloop`** — Code as it was at the end of Episode 02.
 - **`ep03-sprites-movimento`** — Code as it was at the end of Episode 03.
 - **`ep04-isometrico`** — Code as it was at the end of Episode 04.
-- **EP05 through EP06** — Upcoming episodes (branches will be created as they are published).
+- **`ep05-tileset-sprites`** — Code as it was at the end of Episode 05.
+- **EP06 through EP07** — Upcoming episodes (branches will be created as they are published).
 
 To follow along with a specific episode, checkout its branch:
 
@@ -150,7 +165,7 @@ All assets are located in the `assets/` directory.
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under a **Source Available — Non-Commercial** license. You are free to use, study, and modify the code for learning and personal projects, but **commercial use is not permitted** without prior written permission from the author. See the [LICENSE](LICENSE) file for details.
 
 ---
 

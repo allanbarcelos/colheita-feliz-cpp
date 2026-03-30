@@ -1,128 +1,19 @@
+#include "Constantes.h"
+#include "Tipos.h"
+#include "Iso.h"
+#include "Desenho.h"
+#include "Assets.h"
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
+
 #include <nlohmann/json.hpp>
+
 #include <iostream>
-
-constexpr int LARGURA_JANELA = 1280;
-constexpr int ALTURA_JANELA = 720;
-constexpr int FPS_ALVO = 60;
-constexpr int TEMPO_FRAME_MS = 1000 / FPS_ALVO;
-
-constexpr int TILE_LARGURA = 64;
-constexpr int TILE_ALTURA = 32;
-
-constexpr int GRID_COLUNAS = 7;
-constexpr int GRID_LINHAS = 5;
-
-constexpr int OFFSET_X = LARGURA_JANELA / 2;
-constexpr int OFFSET_Y = 200;
-
-constexpr int CANTEIROS_INICIAIS = 6;
-
-int isoParaTelaX(int coluna, int linha)
-{
-    return (coluna - linha) * (TILE_LARGURA / 2) + OFFSET_X;
-}
-
-int isoParaTelaY(int coluna, int linha)
-{
-    return (coluna + linha) * (TILE_ALTURA / 2) + OFFSET_Y;
-}
-
-float telaParaGridColuna(int mouseX, int mouseY)
-{
-    float relX = (float)(mouseX - OFFSET_X);
-    float relY = (float)(mouseY - OFFSET_Y);
-
-    return (relX / (TILE_LARGURA / 2.0f) + relY / (TILE_ALTURA / 2.0f)) / 2.0f;
-}
-
-float telaParaGridLinha(int mouseX, int mouseY)
-{
-    float relX = (float)(mouseX - OFFSET_X);
-    float relY = (float)(mouseY - OFFSET_Y);
-
-    return (relY / (TILE_ALTURA / 2.0f) - relX / (TILE_LARGURA / 2.0f)) / 2.0f;
-}
-
-enum EstadoCanteiro
-{
-    BLOQUEADO = 0,
-    VAZIO = 1,
-    PLANTADO = 2,
-    MADURO = 3,
-    RESTOS = 4
-};
-
-struct Canteiro
-{
-    int coluna;
-    int linha;
-    EstadoCanteiro estado;
-};
-
-void desenharLosangoPreenchido(SDL_Renderer *renderer, int centerX, int centerY, int r, int g, int b, int altura = TILE_ALTURA, int largura = TILE_LARGURA)
-{
-    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
-
-    for (int dy = -altura / 2; dy <= altura / 2; dy++)
-    {
-        int meiaLargura = (altura / 2 - abs(dy)) * largura / altura;
-
-        SDL_RenderDrawLine(renderer, centerX - meiaLargura, centerY + dy, centerX + meiaLargura, centerY + dy);
-    }
-}
-
-void desenharLosangoContorno(SDL_Renderer *renderer, int centerX, int centerY, int r, int g, int b, int altura = TILE_ALTURA, int largura = TILE_LARGURA)
-{
-    int topoX = centerX;
-    int topoY = centerY - altura / 2;
-
-    int direitaX = centerX + largura / 2;
-    int direitaY = centerY;
-
-    int baixoX = centerX;
-    int baixoY = centerY + altura / 2;
-
-    int esquerdaX = centerX - largura / 2;
-    int esquerdaY = centerY;
-
-    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
-
-    SDL_RenderDrawLine(renderer, topoX, topoY, direitaX, direitaY);
-
-    SDL_RenderDrawLine(renderer, direitaX, direitaY, baixoX, baixoY);
-
-    SDL_RenderDrawLine(renderer, baixoX, baixoY, esquerdaX, esquerdaY);
-
-    SDL_RenderDrawLine(renderer, esquerdaX, esquerdaY, topoX, topoY);
-}
-
-SDL_Texture *carregarTextura(SDL_Renderer *renderer, const char *caminho)
-{
-
-    SDL_Surface *superficie = IMG_Load(caminho);
-
-    if (!superficie)
-    {
-        std::cerr << "Erro ao carregar imagem: " << caminho << ":" << IMG_GetError() << std::endl;
-        return nullptr;
-    }
-
-    SDL_Texture *textura = SDL_CreateTextureFromSurface(renderer, superficie);
-
-    SDL_FreeSurface(superficie);
-
-    if (!textura)
-    {
-        std::cerr << "Erro ao criar textura de: " << caminho << ":" << SDL_GetError() << std::endl;
-        return nullptr;
-    }
-
-    return textura;
-}
+#include <array>
+#include <cmath>
 
 int main(int agrc, char *agrv[])
 {
@@ -174,12 +65,12 @@ int main(int agrc, char *agrv[])
         return 1;
     }
 
-    SDL_Renderer *rendeder = SDL_CreateRenderer(
+    SDL_Renderer *renderer = SDL_CreateRenderer(
         janela,
         -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    if (!rendeder)
+    if (!renderer)
     {
         std::cout << "Erro ao criar a render: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(janela);
@@ -189,9 +80,9 @@ int main(int agrc, char *agrv[])
         SDL_Quit();
     }
 
-    std::array<Canteiro, GRID_COLUNAS * GRID_LINHAS> canteiros;
+    Assets assets = carregarTodosAssets(renderer);
 
-    int desbloqueados = 0;
+    std::array<Canteiro, GRID_COLUNAS * GRID_LINHAS> canteiros;
 
     for (int linha = 0; linha < GRID_LINHAS; linha++)
     {
@@ -200,21 +91,25 @@ int main(int agrc, char *agrv[])
             int indice = linha * GRID_COLUNAS + coluna;
             canteiros[indice].coluna = coluna;
             canteiros[indice].linha = linha;
-            canteiros[indice].estado = (desbloqueados < CANTEIROS_INICIAIS) ? VAZIO : BLOQUEADO;
-            if (desbloqueados < CANTEIROS_INICIAIS)
+            canteiros[indice].estado = BLOQUEADO;
+        }
+    }
+
+    int desbloqueados = 0;
+    for (int linha = 0; linha < GRID_LINHAS && desbloqueados < CANTEIROS_INICIAIS; linha++)
+    {
+        for (int coluna = 0; coluna < GRID_COLUNAS && desbloqueados < CANTEIROS_INICIAIS; coluna += 1)
+        {
+            if (coluna < 2)
+            {
+                int indice = linha * GRID_COLUNAS + coluna;
+                canteiros[indice].estado = VAZIO;
                 desbloqueados++;
+            }
         }
     }
 
     std::cout << "Fazenda: " << GRID_COLUNAS << "x" << GRID_LINHAS << " (" << CANTEIROS_INICIAIS << "desbloqueados)" << std::endl;
-
-    int larguraSprite = 0;
-    int alturaSprite = 0;
-
-    float spriteX = (LARGURA_JANELA - larguraSprite) / 2.0f;
-    float spriteY = (ALTURA_JANELA - larguraSprite) / 2.0f;
-
-    float velocidadeSprite = 200.0f;
 
     bool rodando = true;
 
@@ -227,6 +122,8 @@ int main(int agrc, char *agrv[])
     int canteiroHover = -1;
     int mouseX = 0;
     int mouseY = 0;
+
+    int colheitas = 0;
 
     while (rodando)
     {
@@ -259,19 +156,24 @@ int main(int agrc, char *agrv[])
                     switch (c.estado)
                     {
                     case BLOQUEADO:
-                        std::cout << "BLOQUEADO" << std::endl;
+                        std::cout << "(" << c.coluna << "," << c.linha << ") BLOQUEADO" << std::endl;
                         break;
                     case VAZIO:
-                        std::cout << "VAZIO" << std::endl;
+                        c.estado = PLANTADO;
+                        std::cout << "Plantou (" << c.coluna << "," << c.linha << ")" << std::endl;
                         break;
                     case PLANTADO:
-                        std::cout << "PLANTADO" << std::endl;
+                        c.estado = MADURO;
+                        std::cout << "Cresceu (" << c.coluna << "," << c.linha << ")" << std::endl;
                         break;
                     case MADURO:
-                        std::cout << "MADURO" << std::endl;
+                        c.estado = RESTOS;
+                        colheitas++;
+                        std::cout << "Colheu! Total:" << colheitas << std::endl;
                         break;
                     case RESTOS:
-                        std::cout << "RESTOS" << std::endl;
+                        c.estado = VAZIO;
+                        std::cout << "Limpou (" << c.coluna << "," << c.linha << ")" << std::endl;
                         break;
                     }
                 }
@@ -304,8 +206,12 @@ int main(int agrc, char *agrv[])
             }
         }
 
-        SDL_SetRenderDrawColor(rendeder, 34, 139, 34, 255);
-        SDL_RenderClear(rendeder);
+        SDL_SetRenderDrawColor(renderer, 56, 142, 24, 255);
+        SDL_RenderClear(renderer);
+        if (assets.background)
+        {
+            SDL_RenderCopy(renderer, assets.background, nullptr, nullptr);
+        }
 
         for (int linha = 0; linha < GRID_LINHAS; linha++)
         {
@@ -313,55 +219,104 @@ int main(int agrc, char *agrv[])
             {
                 int telaX = isoParaTelaX(coluna, linha);
                 int telaY = isoParaTelaY(coluna, linha);
-
                 int indice = linha * GRID_COLUNAS + coluna;
                 Canteiro &c = canteiros[indice];
 
                 switch (c.estado)
                 {
                 case BLOQUEADO:
-                    desenharLosangoPreenchido(rendeder, telaX, telaY, 90, 90, 90);
-                    SDL_SetRenderDrawColor(rendeder, 60, 60, 50, 255);
-                    SDL_RenderDrawLine(rendeder, telaX - 8, telaY - 4, telaX + 8, telaY + 4);
-                    SDL_RenderDrawLine(rendeder, telaX + 8, telaY - 4, telaX - 8, telaY + 4);
+                    if (assets.tileGramaEscuro)
+                    {
+                        desenharTile(renderer, assets.tileGramaEscuro, telaX, telaY);
+                    }
+                    else if (assets.tileBloqueado)
+                    {
+                        desenharTile(renderer, assets.tileBloqueado, telaX, telaY);
+                    }
+                    else
+                    {
+                        desenharLosangoPreenchido(renderer, telaX, telaY, 80, 120, 50);
+                    }
                     break;
                 case VAZIO:
-                    desenharLosangoPreenchido(rendeder, telaX, telaY, 139, 100, 60);
+                    if (assets.tileTerra)
+                    {
+                        desenharTile(renderer, assets.tileTerra, telaX, telaY);
+                    }
+                    else
+                    {
+                        desenharLosangoPreenchido(renderer, telaX, telaY, 139, 100, 60);
+                    }
                     break;
                 case PLANTADO:
-                    desenharLosangoPreenchido(rendeder, telaX, telaY, 120, 80, 45);
-                    SDL_SetRenderDrawColor(rendeder, 50, 200, 50, 255);
-                    SDL_RenderDrawLine(rendeder, telaX - 8, telaY - 4, telaX + 8, telaY + 4);
+                    if (assets.tileTerra)
+                    {
+                        desenharTile(renderer, assets.tileTerra, telaX, telaY);
+                    }
+                    else
+                    {
+                        desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
+                    }
+
+                    SDL_SetRenderDrawColor(renderer, 50, 200, 50, 255);
+                    SDL_RenderDrawLine(renderer, telaX, telaY - 8, telaX, telaY + 2);
+                    SDL_RenderDrawLine(renderer, telaX - 3, telaY - 5, telaX, telaY - 8);
+                    SDL_RenderDrawLine(renderer, telaX + 3, telaY - 5, telaX, telaY - 8);
                     break;
                 case MADURO:
                 {
-                    desenharLosangoPreenchido(rendeder, telaX, telaY, 120, 80, 45);
-                    SDL_SetRenderDrawColor(rendeder, 255, 80, 80, 255);
-                    SDL_Rect fruto = {telaX - 4, telaY - 6, 8, 8};
-                    SDL_RenderFillRect(rendeder, &fruto);
+                    if (assets.tileTerra)
+                    {
+                        desenharTile(renderer, assets.tileTerra, telaX, telaY);
+                    }
+                    else
+                    {
+                        desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
+                    }
+
+                    SDL_SetRenderDrawColor(renderer, 255, 80, 80, 255);
+                    SDL_Rect fruto = {telaX - 4, telaY - 10, 8, 8};
+                    SDL_RenderFillRect(renderer, &fruto);
                     break;
                 }
                 case RESTOS:
-                    desenharLosangoPreenchido(rendeder, telaX, telaY, 110, 95, 70);
-                    SDL_SetRenderDrawColor(rendeder, 80, 70, 50, 255);
-                    SDL_RenderDrawLine(rendeder, telaX - 6, telaY, telaX + 6, telaY);
-                    break;
-                }
+                    if (assets.tileRestos)
+                    {
+                        desenharTile(renderer, assets.tileRestos, telaX, telaY);
+                    }
+                    else
+                    {
+                        desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
+                        SDL_SetRenderDrawColor(renderer, 80, 70, 50, 255);
+                        SDL_RenderDrawLine(renderer, telaX - 6, telaY, telaX + 6, telaY);
+                    }
 
-                if (c.estado != BLOQUEADO)
-                {
-                    desenharLosangoContorno(rendeder, telaX, telaY, 100, 70, 40);
+                    break;
                 }
 
                 if (indice == canteiroHover)
                 {
-                    desenharLosangoContorno(rendeder, telaX, telaY, 255, 255, 0);
-                    desenharLosangoContorno(rendeder, telaX, telaY, 255, 255, 100, TILE_LARGURA - 4, TILE_ALTURA - 2);
+                    desenharLosangoContorno(renderer, telaX, telaY, 255, 255, 0);
+                    desenharLosangoContorno(renderer, telaX, telaY, 255, 255, 100, TILE_LARGURA - 4, TILE_ALTURA - 2);
                 }
             }
         }
 
-        SDL_RenderPresent(rendeder);
+        if (assets.casa)
+        {
+            SDL_Rect destCasa = {580, 50, 200, 200};
+            SDL_RenderCopyEx(renderer, assets.casa, nullptr, &destCasa,
+                0.0, nullptr, SDL_FLIP_HORIZONTAL);
+        }
+
+        if (assets.casaCachorro)
+        {
+            SDL_Rect destCasinha = {760, 200, 80, 80};
+            SDL_RenderCopyEx(renderer, assets.casaCachorro, nullptr, &destCasinha,
+                0.0, nullptr, SDL_FLIP_HORIZONTAL);
+        }
+
+        SDL_RenderPresent(renderer);
 
         Uint32 tempo_frame = SDL_GetTicks() - tempo_atual;
 
@@ -371,10 +326,10 @@ int main(int agrc, char *agrv[])
         }
     }
 
-    SDL_DestroyRenderer(rendeder);
-
+    liberarAssets(assets);
+    
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);
-
     Mix_CloseAudio();
     TTF_Quit();
     IMG_Quit();
