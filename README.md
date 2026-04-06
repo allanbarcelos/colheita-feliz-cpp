@@ -128,13 +128,14 @@ cmake --build build
 
 Each branch corresponds to a specific episode of the video series. The code evolves incrementally — each episode builds on top of the previous one.
 
-- **`main`** — Always contains the latest stable code (currently up to EP05).
+- **`main`** — Always contains the latest stable code (currently up to EP06).
 - **`ep01-setup-sdl2`** — Code as it was at the end of Episode 01.
 - **`ep02-janela-gameloop`** — Code as it was at the end of Episode 02.
 - **`ep03-sprites-movimento`** — Code as it was at the end of Episode 03.
 - **`ep04-isometrico`** — Code as it was at the end of Episode 04.
 - **`ep05-tileset-sprites`** — Code as it was at the end of Episode 05.
-- **EP06 through EP07** — Upcoming episodes (branches will be created as they are published).
+- **`ep06-toolbar-system`** — Code as it was at the end of Episode 06.
+- **EP07 through EP08** — Upcoming episodes (branches will be created as they are published).
 
 To follow along with a specific episode, checkout its branch:
 
