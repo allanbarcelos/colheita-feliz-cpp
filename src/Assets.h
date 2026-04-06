@@ -37,17 +37,17 @@ inline Assets carregarTodosAssets(SDL_Renderer *renderer)
 
     a.background = carregarTextura(renderer, "assets/background/farm.jpg");
 
-    a.tileGrama = carregarTextura(renderer, "assets/sprites/tile_grama.png");
-    a.tileGramaEscuro = carregarTextura(renderer, "assets/sprites/tile_grama_escuro.png");
-    a.tileTerra = carregarTextura(renderer, "assets/sprites/tile_terra.png");
-    a.tileTerraSeca = carregarTextura(renderer, "assets/sprites/tile_terra_seca.png");
-    a.tileTerraVermelha = carregarTextura(renderer, "assets/sprites/tile_terra_vermelha.png");
-    a.tileBloqueado = carregarTextura(renderer, "assets/sprites/tile_bloqueado.png");
-    a.tileRestos = carregarTextura(renderer, "assets/sprites/tile_restos.png");
+    a.tileGrama = carregarTextura(renderer, "assets/sprites/tiles/tile_grama.png");
+    a.tileGramaEscuro = carregarTextura(renderer, "assets/sprites/tiles/tile_grama_escuro.png");
+    a.tileTerra = carregarTextura(renderer, "assets/sprites/tiles/tile_terra.png");
+    a.tileTerraSeca = carregarTextura(renderer, "assets/sprites/tiles/tile_terra_seca.png");
+    a.tileTerraVermelha = carregarTextura(renderer, "assets/sprites/tiles/tile_terra_vermelha.png");
+    a.tileBloqueado = carregarTextura(renderer, "assets/sprites/tiles/tile_bloqueado.png");
+    a.tileRestos = carregarTextura(renderer, "assets/sprites/tiles/tile_restos.png");
 
-    a.casa = carregarTextura(renderer, "assets/sprites/casa.png");
-    a.casaCachorro = carregarTextura(renderer, "assets/sprites/casinha_cachorro.png");
-    a.cerca = carregarTextura(renderer, "assets/sprites/cerca.png");
+    a.casa = carregarTextura(renderer, "assets/sprites/buildings/casa.png");
+    a.casaCachorro = carregarTextura(renderer, "assets/sprites/buildings/casinha_cachorro.png");
+    a.cerca = carregarTextura(renderer, "assets/sprites/buildings/cerca.png");
 
     return a;
 }

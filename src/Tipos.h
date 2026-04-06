@@ -17,6 +17,23 @@ struct Canteiro
     EstadoCanteiro estado;
 };
 
+enum Ferramenta
+{
+    CURSOR = 0,
+    ENXADA = 1,
+    SACOLA = 2,
+    REGADOR = 3,
+    REMOVEDOR = 4,
+    PESTICIDA = 5,
+    MAO = 6,
+};
+
+struct Toolbar 
+{
+    Ferramenta selecionada = CURSOR;
+    SDL_Texture* icones[7] = {};
+};
+
 struct Assets
 {
     SDL_Texture *background = nullptr;

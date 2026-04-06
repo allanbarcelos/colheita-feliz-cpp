@@ -3,49 +3,18 @@
 #include "Iso.h"
 #include "Desenho.h"
 #include "Assets.h"
+#include "Toolbar.h"
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_ttf.h>
-
-#include <nlohmann/json.hpp>
-
-#include <iostream>
 #include <array>
-#include <cmath>
 
 int main(int agrc, char *agrv[])
 {
-    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) != 0)
-    {
-        std::cout << "Erro ao inicializar SDL2: " << SDL_GetError() << std::endl;
-        return 1;
-    }
+    (void)agrc;
+    (void)agrv;
 
-    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
-    {
-        std::cout << "Erro ao inicializar o SDL2_Image: " << IMG_GetError() << std::endl;
-        SDL_Quit();
-        return 1;
-    }
-
-    if (TTF_Init() == -1)
-    {
-        std::cout << "Erro ao inicializar SDL2_ttf: " << TTF_GetError() << std::endl;
-        IMG_Quit();
-        SDL_Quit();
-        return 1;
-    }
-
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
-    {
-        std::cout << "Erro ao inicializar SDL2_mixer: " << Mix_GetError() << std::endl;
-        TTF_Quit();
-        IMG_Quit();
-        SDL_Quit();
-        return 1;
-    }
+    SDL_Init(SDL_INIT_VIDEO);
+    IMG_Init(IMG_INIT_PNG);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
     SDL_Window *janela = SDL_CreateWindow(
         "Colheita Feliz",
@@ -53,17 +22,7 @@ int main(int agrc, char *agrv[])
         SDL_WINDOWPOS_CENTERED,
         LARGURA_JANELA,
         ALTURA_JANELA,
-        SDL_WINDOW_SHOWN);
-
-    if (!janela)
-    {
-        std::cout << "Erro ao criar a janela: " << SDL_GetError() << std::endl;
-        Mix_CloseAudio();
-        TTF_Quit();
-        IMG_Quit();
-        SDL_Quit();
-        return 1;
-    }
+        0);
 
     SDL_Renderer *renderer = SDL_CreateRenderer(
         janela,
@@ -74,11 +33,12 @@ int main(int agrc, char *agrv[])
     {
         std::cout << "Erro ao criar a render: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(janela);
-        Mix_CloseAudio();
-        TTF_Quit();
         IMG_Quit();
         SDL_Quit();
     }
+
+    Toolbar toolbar;
+    carregarIconesToolbar(renderer, toolbar);
 
     Assets assets = carregarTodosAssets(renderer);
 
@@ -149,31 +109,43 @@ int main(int agrc, char *agrv[])
 
             if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
             {
-                if (canteiroHover >= 0)
+
+                int slotClicado = toolbarHitTest(evento.button.x, evento.button.y);
+
+                if (slotClicado >= 0)
+                {
+                    toolbar.selecionada = static_cast<Ferramenta>(slotClicado);
+                }
+                else if (canteiroHover >= 0)
                 {
                     Canteiro &c = canteiros[canteiroHover];
                     std::cout << "Clique (" << c.coluna << "," << c.linha << "): ";
-                    switch (c.estado)
+                    switch (toolbar.selecionada)
                     {
-                    case BLOQUEADO:
-                        std::cout << "(" << c.coluna << "," << c.linha << ") BLOQUEADO" << std::endl;
+                    case ENXADA:
+                        if (c.estado == RESTOS)
+                        {
+                            c.estado = VAZIO;
+                        }
                         break;
-                    case VAZIO:
-                        c.estado = PLANTADO;
-                        std::cout << "Plantou (" << c.coluna << "," << c.linha << ")" << std::endl;
+                    case SACOLA:
+                        if (c.estado == VAZIO)
+                        {
+                            c.estado = PLANTADO;
+                        }
                         break;
-                    case PLANTADO:
-                        c.estado = MADURO;
-                        std::cout << "Cresceu (" << c.coluna << "," << c.linha << ")" << std::endl;
+                    case MAO:
+                        if (c.estado == MADURO)
+                        {
+                            c.estado = RESTOS;
+                            colheitas++;
+                        }
                         break;
-                    case MADURO:
-                        c.estado = RESTOS;
-                        colheitas++;
-                        std::cout << "Colheu! Total:" << colheitas << std::endl;
+                    case REGADOR:
+                    case REMOVEDOR:
+                    case PESTICIDA:
                         break;
-                    case RESTOS:
-                        c.estado = VAZIO;
-                        std::cout << "Limpou (" << c.coluna << "," << c.linha << ")" << std::endl;
+                    case CURSOR:
                         break;
                     }
                 }
@@ -210,7 +182,8 @@ int main(int agrc, char *agrv[])
         SDL_RenderClear(renderer);
         if (assets.background)
         {
-            SDL_RenderCopy(renderer, assets.background, nullptr, nullptr);
+            SDL_Rect destBg = {0, -50, LARGURA_JANELA, ALTURA_JANELA + 50};
+            SDL_RenderCopy(renderer, assets.background, nullptr, &destBg);
         }
 
         for (int linha = 0; linha < GRID_LINHAS; linha++)
@@ -304,17 +277,21 @@ int main(int agrc, char *agrv[])
 
         if (assets.casa)
         {
-            SDL_Rect destCasa = {580, 50, 200, 200};
+            SDL_Rect destCasa = {580, 0, 200, 200};
             SDL_RenderCopyEx(renderer, assets.casa, nullptr, &destCasa,
-                0.0, nullptr, SDL_FLIP_HORIZONTAL);
+                             0.0, nullptr, SDL_FLIP_HORIZONTAL);
         }
 
         if (assets.casaCachorro)
         {
-            SDL_Rect destCasinha = {760, 200, 80, 80};
+            SDL_Rect destCasinha = {760, 150, 80, 80};
             SDL_RenderCopyEx(renderer, assets.casaCachorro, nullptr, &destCasinha,
-                0.0, nullptr, SDL_FLIP_HORIZONTAL);
+                             0.0, nullptr, SDL_FLIP_HORIZONTAL);
         }
+
+        desenharToolbar(renderer, toolbar);
+
+        desenharCursorFerramenta(renderer, toolbar, mouseX, mouseY);
 
         SDL_RenderPresent(renderer);
 
@@ -327,11 +304,9 @@ int main(int agrc, char *agrv[])
     }
 
     liberarAssets(assets);
-    
+    liberarIconesToolbar(toolbar);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);
-    Mix_CloseAudio();
-    TTF_Quit();
     IMG_Quit();
     SDL_Quit();
 
