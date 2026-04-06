@@ -28,7 +28,7 @@ This is a learning journey — from zero to a fully playable isometric farming g
 | EP03 | Coloquei o Primeiro Sprite | carregarTextura(), IMG_Load, SDL_CreateTextureFromSurface, SDL_RenderCopy, keyboard movement with arrow keys | [`ep03-sprites-movimento`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep03-sprites-movimento) | [Watch](https://youtu.be/egJIi6eT0dc) |
 | EP04 | Projeção Isométrica da Fazenda | Isometric projection (isoParaTelaX/Y), inverse formula (telaParaGridColuna/Linha), mouse picking, farm grid 7x5, EstadoCanteiro enum, diamond rendering | [`ep04-isometrico`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep04-isometrico) | [Watch](https://youtu.be/qL7-9T1GlBM) |
 | EP05 | Coloquei Sprites Reais na Fazenda | Tileset PNG sprites, background image, decorations (casa, casinha do cachorro), code reorganization (Constantes.h, Tipos.h, Iso.h, Desenho.h, Assets.h), canteiro state transitions on click | [`ep05-tileset-sprites`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep05-tileset-sprites) | [Watch](https://youtu.be/D4Fu3haQnF4) |
-| EP06 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | *Coming Soon* | *Coming Soon* |
+| EP06 | Tilemap + Câmera | Tilemap rendering, camera system, scrolling | [`ep06-tilemap-camera`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep06-tilemap-camera) | [Watch](https://youtu.be/BdXGabPxh04) |
 | EP07 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
 
 ---
