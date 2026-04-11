@@ -4,7 +4,9 @@
 #include "Desenho.h"
 #include "Assets.h"
 #include "Toolbar.h"
+#include "Crops.h"
 
+#include <SDL2/SDL_ttf.h>
 #include <array>
 
 int main(int agrc, char *agrv[])
@@ -14,6 +16,7 @@ int main(int agrc, char *agrv[])
 
     SDL_Init(SDL_INIT_VIDEO);
     IMG_Init(IMG_INIT_PNG);
+    TTF_Init();
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
     SDL_Window *janela = SDL_CreateWindow(
@@ -37,10 +40,14 @@ int main(int agrc, char *agrv[])
         SDL_Quit();
     }
 
+    TTF_Font *fonte = TTF_OpenFont("assets/fonts/Nunito.ttf", 18);
+    TTF_Font *fontePequena = TTF_OpenFont("assets/fonts/Nunito.ttf", 14);
+
     Toolbar toolbar;
     carregarIconesToolbar(renderer, toolbar);
 
     Assets assets = carregarTodosAssets(renderer);
+    CropAssets cropAssets = carregarCropAssets(renderer);
 
     std::array<Canteiro, GRID_COLUNAS * GRID_LINHAS> canteiros;
 
@@ -109,44 +116,80 @@ int main(int agrc, char *agrv[])
 
             if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
             {
-
-                int slotClicado = toolbarHitTest(evento.button.x, evento.button.y);
-
-                if (slotClicado >= 0)
+                if (toolbar.painelAberto)
                 {
-                    toolbar.selecionada = static_cast<Ferramenta>(slotClicado);
-                }
-                else if (canteiroHover >= 0)
-                {
-                    Canteiro &c = canteiros[canteiroHover];
-                    std::cout << "Clique (" << c.coluna << "," << c.linha << "): ";
-                    switch (toolbar.selecionada)
+                    int resultado = painelSementeHitTest(evento.button.x, evento.button.y);
+
+                    if (resultado >= 0)
                     {
-                    case ENXADA:
-                        if (c.estado == RESTOS)
+                        toolbar.sementeSelecionada = resultado;
+                        toolbar.painelAberto = false;
+                    }
+                    else if (resultado == -2)
+                    {
+                        toolbar.painelAberto = false;
+                    }
+                    else if (resultado == -1)
+                    {
+                        toolbar.painelAberto = false;
+                    }
+                }
+                else
+                {
+                    int slotClicado = toolbarHitTest(evento.button.x, evento.button.y);
+
+                    if (slotClicado >= 0)
+                    {
+                        Ferramenta nova = static_cast<Ferramenta>(slotClicado);
+
+                        if (nova == SACOLA)
                         {
-                            c.estado = VAZIO;
+                            toolbar.painelAberto = !toolbar.painelAberto;
+                            toolbar.selecionada = SACOLA;
                         }
-                        break;
-                    case SACOLA:
-                        if (c.estado == VAZIO)
+                        else
                         {
-                            c.estado = PLANTADO;
+                            toolbar.selecionada = nova;
+                            toolbar.painelAberto = false;
                         }
-                        break;
-                    case MAO:
-                        if (c.estado == MADURO)
+                    }
+                    else if (canteiroHover >= 0)
+                    {
+                        Canteiro &c = canteiros[canteiroHover];
+                        switch (toolbar.selecionada)
                         {
-                            c.estado = RESTOS;
-                            colheitas++;
+                        case ENXADA:
+                            if (c.estado == RESTOS)
+                            {
+                                c.estado = VAZIO;
+                                c.tipoCrop = -1;
+                                c.estagioCrop = 0;
+                            }
+                            break;
+                        case SACOLA:
+                            if (c.estado == VAZIO && toolbar.sementeSelecionada >= 0)
+                            {
+                                c.estado = PLANTADO;
+                                c.tipoCrop = toolbar.sementeSelecionada;
+                                c.estagioCrop = 1;
+                            }
+                            break;
+                        case MAO:
+                            if (c.estado == MADURO)
+                            {
+                                c.estado = RESTOS;
+                                c.tipoCrop = -1;
+                                c.estagioCrop = 0;
+                                colheitas++;
+                            }
+                            break;
+                        case REGADOR:
+                        case REMOVEDOR:
+                        case PESTICIDA:
+                            break;
+                        case CURSOR:
+                            break;
                         }
-                        break;
-                    case REGADOR:
-                    case REMOVEDOR:
-                    case PESTICIDA:
-                        break;
-                    case CURSOR:
-                        break;
                     }
                 }
             }
@@ -156,10 +199,19 @@ int main(int agrc, char *agrv[])
 
                 if (evento.key.keysym.sym == SDLK_ESCAPE)
                 {
-                    rodando = false;
+                    if (toolbar.painelAberto)
+                    {
+                        toolbar.painelAberto = false;
+                    }
+                    else
+                    {
+                        rodando = false;
+                    }
                 }
             }
         }
+
+        atualizarAnimacoes(toolbar, deltaTime);
 
         {
             float colF = telaParaGridColuna(mouseX, mouseY);
@@ -231,10 +283,7 @@ int main(int agrc, char *agrv[])
                         desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
                     }
 
-                    SDL_SetRenderDrawColor(renderer, 50, 200, 50, 255);
-                    SDL_RenderDrawLine(renderer, telaX, telaY - 8, telaX, telaY + 2);
-                    SDL_RenderDrawLine(renderer, telaX - 3, telaY - 5, telaX, telaY - 8);
-                    SDL_RenderDrawLine(renderer, telaX + 3, telaY - 5, telaX, telaY - 8);
+                    desenharCrop(renderer, cropAssets, c.tipoCrop, c.estagioCrop, telaX, telaY);
                     break;
                 case MADURO:
                 {
@@ -247,9 +296,8 @@ int main(int agrc, char *agrv[])
                         desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
                     }
 
-                    SDL_SetRenderDrawColor(renderer, 255, 80, 80, 255);
-                    SDL_Rect fruto = {telaX - 4, telaY - 10, 8, 8};
-                    SDL_RenderFillRect(renderer, &fruto);
+                    desenharCrop(renderer, cropAssets, c.tipoCrop, TOTAL_ESTAGIOS, telaX, telaY);
+
                     break;
                 }
                 case RESTOS:
@@ -289,9 +337,17 @@ int main(int agrc, char *agrv[])
                              0.0, nullptr, SDL_FLIP_HORIZONTAL);
         }
 
-        desenharToolbar(renderer, toolbar);
+        SDL_Texture *sementeIcone = nullptr;
+        if (toolbar.sementeSelecionada >= 0 && toolbar.sementeSelecionada < TOTAL_CROPS)
+        {
+            sementeIcone = cropAssets.sementes[toolbar.sementeSelecionada];
+        }
 
-        desenharCursorFerramenta(renderer, toolbar, mouseX, mouseY);
+        desenharToolbar(renderer, toolbar, sementeIcone);
+
+        desenharPainelSementes(renderer, fonte, fontePequena, cropAssets, toolbar);
+
+        desenharCursorFerramenta(renderer, toolbar, mouseX, mouseY, sementeIcone);
 
         SDL_RenderPresent(renderer);
 
@@ -302,11 +358,14 @@ int main(int agrc, char *agrv[])
             SDL_Delay(TEMPO_FRAME_MS - tempo_frame);
         }
     }
-
+    liberarCropAssets(cropAssets);
     liberarAssets(assets);
     liberarIconesToolbar(toolbar);
+    if (fontePequena) TTF_CloseFont(fontePequena);
+    if (fonte) TTF_CloseFont(fonte);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);
+    TTF_Quit();
     IMG_Quit();
     SDL_Quit();
 

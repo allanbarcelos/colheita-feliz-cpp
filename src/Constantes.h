@@ -25,3 +25,23 @@ static constexpr int TOOLBAR_X = (LARGURA_JANELA - TOOLBAR_LARGURA) / 2;
 static constexpr int TOOLBAR_ALTURA = SLOT_TAMANHO + 16;
 static constexpr int TOOLBAR_Y = ALTURA_JANELA - TOOLBAR_ALTURA;
 static constexpr int TOOLBAR_PADDING = 8;
+
+static constexpr int TOTAL_CROPS = 15;
+static constexpr int TOTAL_ESTAGIOS = 5;
+
+static constexpr int SEMENTE_ICONE = 64;
+static constexpr int SEMENTE_SLOT_LARGURA = 80;
+static constexpr int SEMENTE_SLOT_ALTURA = 96;
+static constexpr int SEMENTE_ESPACO = 8;
+static constexpr int SEMENTE_LABEL_ALTURA = 18;
+
+static constexpr int PAINEL_COLUNAS_SEMENTE = 5;
+static constexpr int PAINEL_LINHAS_SEMENTE = 3;
+static constexpr int PAINEL_PADDING = 16;
+static constexpr int PAINEL_TITULO_ALTURA = 36;
+
+static constexpr int PAINEL_LARGURA = PAINEL_COLUNAS_SEMENTE * SEMENTE_SLOT_LARGURA + (PAINEL_COLUNAS_SEMENTE - 1) * SEMENTE_ESPACO + 2 * PAINEL_PADDING;
+static constexpr int PAINEL_ALTURA = PAINEL_TITULO_ALTURA + PAINEL_LINHAS_SEMENTE * SEMENTE_SLOT_ALTURA + (PAINEL_LINHAS_SEMENTE - 1) * SEMENTE_ESPACO + 2 * PAINEL_PADDING;
+
+static constexpr int PAINEL_X = (LARGURA_JANELA - PAINEL_LARGURA) / 2;
+static constexpr int PAINEL_Y = (ALTURA_JANELA - PAINEL_ALTURA) / 2;

@@ -10,11 +10,34 @@ enum EstadoCanteiro
     RESTOS = 4
 };
 
+enum TipoCrop
+{
+    NABO = 0,
+    CENOURA = 1,
+    TOMATE = 2,
+    MILHO = 3,
+    MORANGO = 4,
+    BATATA = 5,
+    MELANCIA = 6,
+    ARROZ = 7,
+    GIRASSOL = 8,
+    REPOLHO = 9,
+    ABOBORA = 10,
+    BERINJELA = 11,
+    UVA = 12,
+    PEPINO = 13,
+    PIMENTAO = 14,
+};
+
 struct Canteiro
 {
     int coluna;
     int linha;
     EstadoCanteiro estado;
+
+    int tipoCrop = -1;
+
+    int estagioCrop = 0;
 };
 
 enum Ferramenta
@@ -28,10 +51,17 @@ enum Ferramenta
     MAO = 6,
 };
 
-struct Toolbar 
+struct Toolbar
 {
     Ferramenta selecionada = CURSOR;
-    SDL_Texture* icones[7] = {};
+    SDL_Texture *icones[7] = {};
+
+    int sementeSelecionada = -1;
+    bool painelAberto = false;
+
+    float selecaoAnimacao[7] = {};
+    float painelSelAnimacao[15] = {};
+    float painelAberturaAnimacao = 0.0f;
 };
 
 struct Assets
