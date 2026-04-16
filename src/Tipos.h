@@ -38,6 +38,8 @@ struct Canteiro
     int tipoCrop = -1;
 
     int estagioCrop = 0;
+    Uint32 timestampPlantio = 0;
+    int temporadaAtual = 0;
 };
 
 enum Ferramenta

@@ -45,3 +45,6 @@ static constexpr int PAINEL_ALTURA = PAINEL_TITULO_ALTURA + PAINEL_LINHAS_SEMENT
 
 static constexpr int PAINEL_X = (LARGURA_JANELA - PAINEL_LARGURA) / 2;
 static constexpr int PAINEL_Y = (ALTURA_JANELA - PAINEL_ALTURA) / 2;
+
+static constexpr int VELOCIDADE_TEMPO_NORMAL = 1.0f;
+static constexpr int VELOCIDADE_TEMPO_DEBUG = 60.0f;

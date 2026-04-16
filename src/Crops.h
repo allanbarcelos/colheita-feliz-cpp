@@ -12,24 +12,25 @@ struct DadosCrop
     int precoCompra;
     int precoVenda;
     int temporadas;
+    int tempoTotalSegundos;
 };
 
 static const DadosCrop TABELA_CROPS[TOTAL_CROPS] = {
-    {"Nabo", "nabo", 10, 20, 4},
-    {"Cenoura", "cenoura", 15, 30, 3},
-    {"Tomate", "tomate", 20, 45, 3},
-    {"Milho", "milho", 25, 55, 2},
-    {"Morango", "morango", 30, 65, 3},
-    {"Batata", "batata", 18, 40, 3},
-    {"Melancia", "melancia", 50, 120, 1},
-    {"Arroz", "arroz", 22, 50, 2},
-    {"Girassol", "girassol", 35, 75, 1},
-    {"Repolho", "repolho", 20, 42, 2},
-    {"Abóbora", "abobora", 45, 100, 1},
-    {"Berinjela", "berinjela", 55, 130, 2},
-    {"Uva", "uva", 70, 160, 3},
-    {"Pepino", "pepino", 25, 52, 2},
-    {"Pimentão", "pimentao", 60, 140, 2}};
+    {"Nabo", "nabo", 10, 20, 4, 50},
+    {"Cenoura", "cenoura", 15, 30, 3, 60},
+    {"Tomate", "tomate", 20, 45, 3, 70},
+    {"Milho", "milho", 25, 55, 2, 80},
+    {"Morango", "morango", 30, 65, 3, 75},
+    {"Batata", "batata", 18, 40, 3, 65},
+    {"Melancia", "melancia", 50, 120, 1, 120},
+    {"Arroz", "arroz", 22, 50, 2, 70},
+    {"Girassol", "girassol", 35, 75, 1, 90},
+    {"Repolho", "repolho", 20, 42, 2, 65},
+    {"Abóbora", "abobora", 45, 100, 1, 110},
+    {"Berinjela", "berinjela", 55, 130, 2, 100},
+    {"Uva", "uva", 70, 160, 3, 110},
+    {"Pepino", "pepino", 25, 52, 2, 70},
+    {"Pimentão", "pimentao", 60, 140, 2, 100}};
 
 static constexpr int CROP_TAMANHOS[TOTAL_ESTAGIOS] = {
     24,
@@ -307,4 +308,26 @@ inline int painelSementeHitTest(int mouseX, int mouseY)
     }
 
     return -1;
+}
+
+inline void desenharBarraProgresso(SDL_Renderer *renderer, int telaX, int telaY, float fracao)
+{
+    if (fracao < 0.0f)
+        fracao = 0.0f;
+    if (fracao > 1.0f)
+        fracao = 1.0f;
+
+    const int larguraBarra = 40;
+    const int alturaBarra = 4;
+
+    int bx = telaX - larguraBarra / 2;
+    int by = telaY - 48;
+
+    SDL_SetRenderDrawColor(renderer, 40, 40, 40, 200);
+    SDL_Rect fundo = {bx, by, larguraBarra, alturaBarra};
+    SDL_RenderFillRect(renderer, &fundo);
+
+    SDL_SetRenderDrawColor(renderer, 80, 200, 60, 255);
+    SDL_Rect preenchido = {bx, by, static_cast<int>(larguraBarra * fracao), alturaBarra};
+    SDL_RenderFillRect(renderer, &preenchido);
 }

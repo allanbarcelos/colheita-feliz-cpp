@@ -86,6 +86,9 @@ int main(int agrc, char *agrv[])
 
     float deltaTime = 0.0f;
 
+    Uint32 tempoJogoMs = 0;
+    float velocidadeTempo = VELOCIDADE_TEMPO_NORMAL;
+
     int canteiroHover = -1;
     int mouseX = 0;
     int mouseY = 0;
@@ -99,6 +102,8 @@ int main(int agrc, char *agrv[])
         deltaTime = (tempo_atual - tempo_anterior) / 1000.0f;
 
         tempo_anterior = tempo_atual;
+
+        tempoJogoMs += static_cast<Uint32>(deltaTime * velocidadeTempo * 1000.0f);
 
         while (SDL_PollEvent(&evento))
         {
@@ -172,15 +177,31 @@ int main(int agrc, char *agrv[])
                                 c.estado = PLANTADO;
                                 c.tipoCrop = toolbar.sementeSelecionada;
                                 c.estagioCrop = 1;
+                                c.timestampPlantio = tempoJogoMs;
+                                c.temporadaAtual = 1;
                             }
                             break;
                         case MAO:
                             if (c.estado == MADURO)
                             {
-                                c.estado = RESTOS;
-                                c.tipoCrop = -1;
-                                c.estagioCrop = 0;
                                 colheitas++;
+                                c.temporadaAtual++;
+
+                                int totalTemp = TABELA_CROPS[c.tipoCrop].temporadas;
+                                if (c.temporadaAtual <= totalTemp)
+                                {
+                                    c.estado = PLANTADO;
+                                    c.estagioCrop = 1;
+                                    c.timestampPlantio = tempoJogoMs;
+                                }
+                                else
+                                {
+                                    c.estado = RESTOS;
+                                    c.tipoCrop = -1;
+                                    c.estagioCrop = 0;
+                                    c.timestampPlantio = 0;
+                                    c.temporadaAtual = 0;
+                                }
                             }
                             break;
                         case REGADOR:
@@ -196,7 +217,6 @@ int main(int agrc, char *agrv[])
 
             if (evento.type == SDL_KEYDOWN)
             {
-
                 if (evento.key.keysym.sym == SDLK_ESCAPE)
                 {
                     if (toolbar.painelAberto)
@@ -207,6 +227,19 @@ int main(int agrc, char *agrv[])
                     {
                         rodando = false;
                     }
+                }
+
+                if (evento.key.keysym.sym == SDLK_t)
+                {
+                    velocidadeTempo = VELOCIDADE_TEMPO_DEBUG;
+                }
+            }
+
+            if (evento.type == SDL_KEYUP)
+            {
+                if (evento.key.keysym.sym == SDLK_t)
+                {
+                    velocidadeTempo = VELOCIDADE_TEMPO_NORMAL;
                 }
             }
         }
@@ -227,6 +260,35 @@ int main(int agrc, char *agrv[])
             else
             {
                 canteiroHover = -1;
+            }
+
+            for (int i = 0; i < GRID_COLUNAS * GRID_LINHAS; i++)
+            {
+                Canteiro &c = canteiros[i];
+
+                if (c.estado != PLANTADO)
+                    continue;
+                if (c.tipoCrop < 0)
+                    continue;
+
+                Uint32 passadoMs = tempoJogoMs - c.timestampPlantio;
+
+                Uint32 totalMs = static_cast<Uint32>(TABELA_CROPS[c.tipoCrop].tempoTotalSegundos * 1000);
+
+                float fracao = static_cast<float>(passadoMs) / static_cast<float>(totalMs);
+                if (fracao > 1.0f)
+                    fracao = 1.0f;
+
+                int novoEstagio = static_cast<int>(fracao * TOTAL_ESTAGIOS) + 1;
+                if (novoEstagio > TOTAL_ESTAGIOS)
+                    novoEstagio = TOTAL_ESTAGIOS;
+
+                c.estagioCrop = novoEstagio;
+
+                if (fracao >= 1.0f)
+                {
+                    c.estado = MADURO;
+                }
             }
         }
 
@@ -284,6 +346,14 @@ int main(int agrc, char *agrv[])
                     }
 
                     desenharCrop(renderer, cropAssets, c.tipoCrop, c.estagioCrop, telaX, telaY);
+
+                    if (c.tipoCrop >= 0)
+                    {
+                        Uint32 passado = tempoJogoMs - c.timestampPlantio;
+                        Uint32 total = static_cast<Uint32>(TABELA_CROPS[c.tipoCrop].tempoTotalSegundos) * 1000;
+                        float frac = static_cast<float>(passado) / static_cast<float>(total);
+                        desenharBarraProgresso(renderer, telaX, telaY, frac);
+                    }
                     break;
                 case MADURO:
                 {
@@ -361,8 +431,10 @@ int main(int agrc, char *agrv[])
     liberarCropAssets(cropAssets);
     liberarAssets(assets);
     liberarIconesToolbar(toolbar);
-    if (fontePequena) TTF_CloseFont(fontePequena);
-    if (fonte) TTF_CloseFont(fonte);
+    if (fontePequena)
+        TTF_CloseFont(fontePequena);
+    if (fonte)
+        TTF_CloseFont(fonte);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);
     TTF_Quit();
