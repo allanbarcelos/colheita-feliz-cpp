@@ -30,7 +30,8 @@ This is a learning journey — from zero to a fully playable isometric farming g
 | EP05 | Coloquei Sprites Reais na Fazenda | Tileset PNG sprites, background image, decorations (casa, casinha do cachorro), code reorganization (Constantes.h, Tipos.h, Iso.h, Desenho.h, Assets.h), canteiro state transitions on click | [`ep05-tileset-sprites`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep05-tileset-sprites) | [Watch](https://youtu.be/D4Fu3haQnF4) |
 | EP06 | Toolbar + Sistema de Ferramentas | Barra de ferramentas com 7 ícones, enum Ferramenta, struct Toolbar, hit testing, ações contextuais por ferramenta × estado (enxada limpa restos, sacola planta, mão colhe) | [`ep06-toolbar-system`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep06-toolbar-system) | [Watch](https://youtu.be/BdXGabPxh04) |
 | EP07 | Sementes, Plantio e Estágios Visuais | 15 tipos de sementes (Crops.h, TABELA_CROPS), 5 estágios de crescimento, painel de seleção de sementes com grade 5×3, animações com easing, SDL2_ttf + Google Fonts (Nunito), retângulos arredondados, cursor customizado por ferramenta | [`ep07-crop-system`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep07-crop-system) | [Watch](https://youtu.be/Ii06q8NsmSY) |
-| EP08 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
+| EP08 | A Fazenda Agora Cresce Sozinha | Game speed control with T key hold (velocidadeTempo variable), debug speed multiplier, accelerated crop growth simulation, event handling fix (SDL_KEYDOWN/KEYUP nesting) | [`ep08-accelerated-time-system`](https://github.com/harlleybastos/colheita-feliz-cpp/tree/ep08-accelerated-time-system) | [Watch](https://youtu.be/nzBNxl-gdrk) |
+| EP09 | Personagem + Animação | Character sprite, spritesheet animation, directional movement | *Coming Soon* | *Coming Soon* |
 
 ---
 
