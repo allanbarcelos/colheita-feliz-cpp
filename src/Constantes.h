@@ -63,3 +63,23 @@ static constexpr int XP_BASE_POR_NIVEL = 100;
 static constexpr int XP_INCREMENTO_POR_NIVEL = 50;
 static constexpr int POPULARIDADE_MAX = 100;
 
+static constexpr int CERCADO_CENTRO_X = 1331;
+static constexpr int CERCADO_CENTRO_Y = 513;
+static constexpr int CERCADO_RAIO_X = 205;
+static constexpr int CERCADO_RAIO_Y = 114;
+static constexpr int ANIMAL_TAMANHO = 128;
+static constexpr int ANIMAL_SENTADO_TAM = 96;
+
+static constexpr int CACHORRO_AREA_X = 820;
+static constexpr int CACHORRO_AREA_Y = 320;
+static constexpr int CACHORRO_AREA_LARGURA = 220;
+static constexpr int CACHORRO_AREA_ALTURA = 140;
+static constexpr Uint32 CACHORRO_TEMPO_PARADO_MS = 3000;
+
+static constexpr Uint32 INTERVALO_PRODUCAO_MS = 8u * 3600u * 1000u;
+static constexpr int RACAO_INICIAL = 3;
+static constexpr int PRECO_RACAO = 30;
+
+static constexpr int ANIMAL_FRAME_TEMPO_MS = 165;
+static constexpr float ANIMAL_VELOCIDADE_PX_S = 18.0f;
+

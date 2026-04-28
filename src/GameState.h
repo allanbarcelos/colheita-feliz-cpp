@@ -11,6 +11,8 @@
 #include "Crops.h"
 #include "HudAssets.h"
 #include "Missoes.h"
+#include "Animal.h"
+#include "AnimalAssets.h"
 
 struct GameState
 {
@@ -57,6 +59,13 @@ struct GameState
     int ultimoDiaRecompensa;
     bool recompensaDisponivel;
 
+    Animal animais[3];
+    Cachorro cachorro;
+    int inventarioRacao;
+    int inventarioProdutos[3];
+    AnimalAssets animalAssets;
+    int animalHover;
+
     Assets assets;
     CropAssets cropAssets;
     HudAssets hudAssets;
@@ -67,6 +76,8 @@ struct GameState
     TTF_Font *fonteHud;
 
     bool solicitouSair;
+
+    bool debugAtivo;
 };
 
 #ifdef _WIN32

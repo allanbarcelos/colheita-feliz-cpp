@@ -90,6 +90,27 @@ inline void desenharDeposito(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *
         desenharTexto(renderer, fontePequena, buffer, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 12, corQtd, true);
     }
 
+    int linhaAnimaisY = PAINEL_Y + PAINEL_ALTURA - 100;
+    SDL_Color corLabelAnimais = {255, 235, 180, 255};
+    desenharTexto(renderer, fonte, "Animais:", PAINEL_X + PAINEL_PADDING, linhaAnimaisY, corLabelAnimais, false);
+
+    SDL_Texture *iconesAnimais[3] = {s.animalAssets.iconeOvo, s.animalAssets.iconeLeite, s.animalAssets.iconeLa};
+    const char *nomesAnimais[3] = {"Ovos", "Leite", "La"};
+    for (int i = 0; i < 3; i++)
+    {
+        int slotXa = PAINEL_X + PAINEL_PADDING + 90 + i * 130;
+        int slotYa = linhaAnimaisY - 4;
+        if (iconesAnimais[i])
+        {
+            SDL_Rect destA = {slotXa, slotYa, 28, 28};
+            SDL_RenderCopy(renderer, iconesAnimais[i], nullptr, &destA);
+        }
+        char bufA[32];
+        snprintf(bufA, sizeof(bufA), "%s x%d", nomesAnimais[i], s.inventarioProdutos[i]);
+        SDL_Color corNumA = {220, 220, 220, 255};
+        desenharTexto(renderer, fontePequena, bufA, slotXa + 32, slotYa + 8, corNumA, false);
+    }
+
     int btnY = PAINEL_Y + PAINEL_ALTURA - 50;
     int btnH = 36;
     int btnW = 220;

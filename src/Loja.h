@@ -105,6 +105,33 @@ inline void desenharLoja(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *font
         }
     }
 
+    int racaoY = PAINEL_Y + PAINEL_ALTURA - 60;
+    int racaoX = PAINEL_X + PAINEL_PADDING;
+    int racaoLargura = PAINEL_LARGURA - 2 * PAINEL_PADDING;
+    int racaoAltura = 44;
+
+    bool podeComprarRacao = (s.ouro >= PRECO_RACAO);
+    SDL_SetRenderDrawColor(renderer,
+                           podeComprarRacao ? 100 : 60,
+                           podeComprarRacao ? 80  : 50,
+                           podeComprarRacao ? 50  : 45,
+                           240);
+    desenharRetanguloArredondado(renderer, racaoX, racaoY, racaoLargura, racaoAltura, 8);
+
+    if (s.animalAssets.iconeRacao)
+    {
+        SDL_Rect destIcone = {racaoX + 8, racaoY + 6, 32, 32};
+        SDL_RenderCopy(renderer, s.animalAssets.iconeRacao, nullptr, &destIcone);
+    }
+
+    SDL_Color corLabel = {255, 235, 180, 255};
+    desenharTexto(renderer, fonte, "Racao Animal", racaoX + 50, racaoY + 8, corLabel, false);
+
+    char bufRacao[64];
+    snprintf(bufRacao, sizeof(bufRacao), "%d ouro - Tenho: %d", PRECO_RACAO, s.inventarioRacao);
+    SDL_Color corPrecoRacao = {255, 220, 100, 255};
+    desenharTexto(renderer, fontePequena, bufRacao, racaoX + 50, racaoY + 26, corPrecoRacao, false);
+
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 }
 
@@ -124,6 +151,16 @@ inline int lojaHitTest(int mouseX, int mouseY)
 
         if (mouseX >= sx && mouseX <= sx + SEMENTE_SLOT_LARGURA && mouseY >= sy && mouseY <= sy + SEMENTE_SLOT_ALTURA)
             return i;
+    }
+
+    {
+        int racaoY = PAINEL_Y + PAINEL_ALTURA - 60;
+        int racaoX = PAINEL_X + PAINEL_PADDING;
+        int racaoLargura = PAINEL_LARGURA - 2 * PAINEL_PADDING;
+        int racaoAltura = 44;
+        if (mouseX >= racaoX && mouseX <= racaoX + racaoLargura &&
+            mouseY >= racaoY && mouseY <= racaoY + racaoAltura)
+            return 999;
     }
 
     if (mouseX >= PAINEL_X && mouseX <= PAINEL_X + PAINEL_LARGURA && mouseY >= PAINEL_Y && mouseY <= PAINEL_Y + PAINEL_ALTURA)

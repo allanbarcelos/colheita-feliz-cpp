@@ -10,6 +10,7 @@
 #include "Missoes.h"
 #include "PainelMissoes.h"
 #include "RecompensaDiaria.h"
+#include "AnimalLogica.h"
 
 #include <cmath>
 
@@ -107,6 +108,26 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->ultimoDiaRecompensa = -1;
     s->recompensaDisponivel = true;
 
+    s->animalAssets = carregarAnimalAssets(renderer);
+
+    s->animais[0] = { GALINHA, 1331.0f, 542.0f, 1, 1331.0f, 542.0f, 0, 0, false, false, 0 };
+    s->animais[1] = { VACA,    1331.0f, 542.0f, 1, 1331.0f, 542.0f, 0, 0, false, false, 0 };
+    s->animais[2] = { OVELHA,  1331.0f, 542.0f, 1, 1331.0f, 542.0f, 0, 0, false, false, 0 };
+
+    s->cachorro.raca = GOLDEN;
+    s->cachorro.x = static_cast<float>(CACHORRO_AREA_X + CACHORRO_AREA_LARGURA / 2);
+    s->cachorro.y = static_cast<float>(CACHORRO_AREA_Y + CACHORRO_AREA_ALTURA / 2);
+    s->cachorro.direcao = 1;
+    s->cachorro.targetX = s->cachorro.x;
+    s->cachorro.targetY = s->cachorro.y;
+    s->cachorro.timestampProximoTarget = 0;
+    s->cachorro.emMovimento = false;
+
+    s->inventarioRacao = RACAO_INICIAL;
+    for (int i = 0; i < 3; i++) s->inventarioProdutos[i] = 0;
+    s->animalHover = -1;
+    s->debugAtivo = false;
+
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
         s->inventarioSementes[i] = 0;
@@ -140,6 +161,13 @@ static void processarEventos(GameState *s)
 
         if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
         {
+            if (s->debugAtivo)
+            {
+                char dbg[64];
+                snprintf(dbg, sizeof(dbg), "Click @ (%d, %d)", evento.button.x, evento.button.y);
+                adicionarLog(s, dbg);
+            }
+
             if (caixaRecompensaClicada(evento.button.x, evento.button.y, s->recompensaDisponivel))
             {
                 char msg[96];
@@ -222,6 +250,17 @@ static void processarEventos(GameState *s)
 
                     s->lojaAberta = false;
                 }
+                else if (resLoja == 999)
+                {
+                    if (s->ouro >= PRECO_RACAO)
+                    {
+                        s->ouro -= PRECO_RACAO;
+                        s->inventarioRacao++;
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "Comprou 1 Racao (-%d ouro)", PRECO_RACAO);
+                        adicionarLog(s, msg);
+                    }
+                }
                 else if (resLoja >= 0)
                 {
                     if (!atingiuNivel(s->xp, TABELA_CROPS[resLoja].nivelDesbloqueio))
@@ -280,6 +319,43 @@ static void processarEventos(GameState *s)
                     s->depositoAberto = false;
                 }
                 continue;
+            }
+
+            int animalClicado = animalHitTest(s->animais, evento.button.x, evento.button.y);
+            if (animalClicado >= 0)
+            {
+                Animal &a = s->animais[animalClicado];
+
+                if (a.produtoPronto)
+                {
+                    s->inventarioProdutos[a.tipo]++;
+                    s->valorDeposito += precoProduto(a.tipo);
+                    a.produtoPronto = false;
+                    char msg[96];
+                    snprintf(msg, sizeof(msg), "Recolheu %s (+%d no deposito)",
+                             nomeProduto(a.tipo), precoProduto(a.tipo));
+                    adicionarLog(s, msg);
+                    continue;
+                }
+
+                if (a.comFome && s->inventarioRacao > 0)
+                {
+                    s->inventarioRacao--;
+                    a.comFome = false;
+                    a.timestampUltimaRefeicao = s->tempoJogoMs;
+                    char msg[96];
+                    snprintf(msg, sizeof(msg), "Alimentou %s",
+                             a.tipo == GALINHA ? "galinha" :
+                             a.tipo == VACA    ? "vaca"    : "ovelha");
+                    adicionarLog(s, msg);
+                    continue;
+                }
+
+                if (a.comFome && s->inventarioRacao == 0)
+                {
+                    adicionarLog(s, "Sem racao! Compra na Loja");
+                    continue;
+                }
             }
 
             if (s->toolbar.painelAberto)
@@ -475,6 +551,11 @@ static void processarEventos(GameState *s)
             if (evento.key.keysym.sym == SDLK_F5)
             {
                 carregarConfig("assets/config.ini");
+            }
+            if (evento.key.keysym.sym == SDLK_F3)
+            {
+                s->debugAtivo = !s->debugAtivo;
+                adicionarLog(s, s->debugAtivo ? "Debug ON (F3)" : "Debug OFF (F3)");
             }
 
             if (evento.key.keysym.sym == SDLK_l)
@@ -712,6 +793,9 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
         sementeIcone = s->cropAssets.sementes[s->toolbar.sementeSelecionada];
     }
 
+    desenharCachorro(renderer, s->cachorro, s->animalAssets, s->tempoJogoMs);
+    desenharAnimais(renderer, s->animais, s->animalAssets, s->tempoJogoMs);
+
     desenharToolbar(renderer, s->toolbar, sementeIcone);
 
     if (s->toolbarHover >= 0 && !s->toolbar.painelAberto)
@@ -736,6 +820,60 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
                            s->missoesDiarias, s->painelMissoesAbertura);
     bool forcarCursor = s->lojaAberta || s->depositoAberto || s->modoCompraCanteiro || s->painelMissoesAberto;
     desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, sementeIcone, forcarCursor);
+
+    if (s->debugAtivo)
+    {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+        SDL_SetRenderDrawColor(renderer, 0, 255, 255, 220);
+        int top_x  = CERCADO_CENTRO_X,                    top_y  = CERCADO_CENTRO_Y - CERCADO_RAIO_Y;
+        int rig_x  = CERCADO_CENTRO_X + CERCADO_RAIO_X,   rig_y  = CERCADO_CENTRO_Y;
+        int bot_x  = CERCADO_CENTRO_X,                    bot_y  = CERCADO_CENTRO_Y + CERCADO_RAIO_Y;
+        int lef_x  = CERCADO_CENTRO_X - CERCADO_RAIO_X,   lef_y  = CERCADO_CENTRO_Y;
+        SDL_RenderDrawLine(renderer, top_x, top_y, rig_x, rig_y);
+        SDL_RenderDrawLine(renderer, rig_x, rig_y, bot_x, bot_y);
+        SDL_RenderDrawLine(renderer, bot_x, bot_y, lef_x, lef_y);
+        SDL_RenderDrawLine(renderer, lef_x, lef_y, top_x, top_y);
+
+        int marg = ANIMAL_TAMANHO / 2;
+        SDL_SetRenderDrawColor(renderer, 0, 200, 200, 160);
+        int rx = CERCADO_RAIO_X - marg, ry = CERCADO_RAIO_Y - marg;
+        if (rx > 0 && ry > 0)
+        {
+            int t_x = CERCADO_CENTRO_X,       t_y = CERCADO_CENTRO_Y - ry;
+            int r_x = CERCADO_CENTRO_X + rx,  r_y = CERCADO_CENTRO_Y;
+            int b_x = CERCADO_CENTRO_X,       b_y = CERCADO_CENTRO_Y + ry;
+            int l_x = CERCADO_CENTRO_X - rx,  l_y = CERCADO_CENTRO_Y;
+            SDL_RenderDrawLine(renderer, t_x, t_y, r_x, r_y);
+            SDL_RenderDrawLine(renderer, r_x, r_y, b_x, b_y);
+            SDL_RenderDrawLine(renderer, b_x, b_y, l_x, l_y);
+            SDL_RenderDrawLine(renderer, l_x, l_y, t_x, t_y);
+        }
+
+        SDL_SetRenderDrawColor(renderer, 255, 180, 0, 220);
+        SDL_Rect cachorro = {CACHORRO_AREA_X, CACHORRO_AREA_Y, CACHORRO_AREA_LARGURA, CACHORRO_AREA_ALTURA};
+        SDL_RenderDrawRect(renderer, &cachorro);
+
+        char coords[64];
+        snprintf(coords, sizeof(coords), "(%d, %d)", s->mouseX, s->mouseY);
+        int padX = 8, padY = 4;
+        int tw = 0, th = 0;
+        if (s->fontePequena) TTF_SizeUTF8(s->fontePequena, coords, &tw, &th);
+        int boxW = tw + padX * 2;
+        int boxH = th + padY * 2;
+        int boxX = s->mouseX + 14;
+        int boxY = s->mouseY + 14;
+        if (boxX + boxW > LARGURA_JANELA) boxX = s->mouseX - boxW - 6;
+        SDL_Rect coordBox = {boxX, boxY, boxW, boxH};
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
+        SDL_RenderFillRect(renderer, &coordBox);
+        SDL_SetRenderDrawColor(renderer, 0, 255, 255, 240);
+        SDL_RenderDrawRect(renderer, &coordBox);
+        SDL_Color corCoord = {0, 255, 255, 255};
+        desenharTexto(renderer, s->fontePequena, coords, boxX + padX, boxY + padY, corCoord, false);
+
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    }
 
     SDL_RenderPresent(renderer);
 }
@@ -771,6 +909,10 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
             if (*a.valor > 0.995f) *a.valor = 1.0f;
         }
     }
+
+    for (int i = 0; i < 3; i++)
+        atualizarAnimal(s->animais[i], dt, s->tempoJogoMs);
+    atualizarCachorro(s->cachorro, dt, s->tempoJogoMs);
 
     processarEventos(s);
     atualizarAnimacoes(s->toolbar, dt);
