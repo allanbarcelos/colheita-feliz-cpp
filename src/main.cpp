@@ -1,22 +1,126 @@
-#include "Constantes.h"
-#include "Tipos.h"
-#include "Iso.h"
-#include "Desenho.h"
-#include "Assets.h"
-#include "Toolbar.h"
-#include "Crops.h"
+#include "GameState.h"
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
-#include <array>
 
-int main(int agrc, char *agrv[])
+#include <cstdio>
+#include <cstring>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
+struct GameCode
 {
-    (void)agrc;
-    (void)agrv;
+    HMODULE module;
+    FILETIME ultimaEscrita;
+    GameInitFn init;
+    GameFrameFn frame;
+    bool valido;
+};
 
+static char GAME_DLL_PATH[MAX_PATH] = {};
+static char GAME_DLL_CARREGADO[MAX_PATH] = {};
+
+static void resolverCaminhosDll()
+{
+    char *base = SDL_GetBasePath();
+    if (!base)
+    {
+        snprintf(GAME_DLL_PATH, sizeof(GAME_DLL_PATH), "game.dll");
+        snprintf(GAME_DLL_CARREGADO, sizeof(GAME_DLL_CARREGADO), "game_loaded.dll");
+        return;
+    }
+    snprintf(GAME_DLL_PATH, sizeof(GAME_DLL_PATH), "%sgame.dll", base);
+    snprintf(GAME_DLL_CARREGADO, sizeof(GAME_DLL_CARREGADO), "%sgame_loaded.dll", base);
+    SDL_free(base);
+}
+
+static FILETIME obterMtime(const char *caminho)
+{
+    WIN32_FILE_ATTRIBUTE_DATA dados;
+    FILETIME zero = {};
+    if (GetFileAttributesExA(caminho, GetFileExInfoStandard, &dados))
+    {
+        return dados.ftLastWriteTime;
+    }
+    return zero;
+}
+
+static bool mtimeDiferente(FILETIME a, FILETIME b)
+{
+    return CompareFileTime(&a, &b) != 0;
+}
+
+static void descarregarGameCode(GameCode *gc)
+{
+    if (gc->module)
+    {
+        FreeLibrary(gc->module);
+        gc->module = nullptr;
+    }
+    gc->init = nullptr;
+    gc->frame = nullptr;
+    gc->valido = false;
+}
+
+static bool carregarGameCode(GameCode *gc)
+{
+    for (int tentativa = 0; tentativa < 10; tentativa++)
+    {
+        if (CopyFileA(GAME_DLL_PATH, GAME_DLL_CARREGADO, FALSE))
+            break;
+        Sleep(50);
+    }
+
+    gc->module = LoadLibraryA(GAME_DLL_CARREGADO);
+    if (!gc->module)
+    {
+        printf("[platform] LoadLibrary falhou: %lu\n", GetLastError());
+        gc->valido = false;
+        return false;
+    }
+
+    gc->init = reinterpret_cast<GameInitFn>(GetProcAddress(gc->module, "game_init"));
+    gc->frame = reinterpret_cast<GameFrameFn>(GetProcAddress(gc->module, "game_frame"));
+    gc->ultimaEscrita = obterMtime(GAME_DLL_PATH);
+    gc->valido = (gc->init != nullptr) && (gc->frame != nullptr);
+
+    if (!gc->valido)
+    {
+        printf("[platform] símbolos não encontrados no DLL\n");
+        FreeLibrary(gc->module);
+        gc->module = nullptr;
+    }
+
+    return gc->valido;
+}
+
+static bool dllMudou(const GameCode *gc)
+{
+    FILETIME atual = obterMtime(GAME_DLL_PATH);
+    return mtimeDiferente(atual, gc->ultimaEscrita);
+}
+
+int main(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    SDL_SetHint("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2");
+    SDL_SetHint("SDL_WINDOWS_DPI_SCALING", "0");
     SDL_Init(SDL_INIT_VIDEO);
     IMG_Init(IMG_INIT_PNG);
     TTF_Init();
+
+    resolverCaminhosDll();
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
     SDL_Window *janela = SDL_CreateWindow(
@@ -28,419 +132,75 @@ int main(int agrc, char *agrv[])
         0);
 
     SDL_Renderer *renderer = SDL_CreateRenderer(
-        janela,
-        -1,
+        janela, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     if (!renderer)
     {
-        std::cout << "Erro ao criar a render: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(janela);
-        IMG_Quit();
-        SDL_Quit();
+        printf("[platform] erro ao criar renderer: %s\n", SDL_GetError());
+        return 1;
     }
 
-    TTF_Font *fonte = TTF_OpenFont("assets/fonts/Nunito.ttf", 18);
-    TTF_Font *fontePequena = TTF_OpenFont("assets/fonts/Nunito.ttf", 14);
+    GameState estado = {};
+    GameCode gc = {};
 
-    Toolbar toolbar;
-    carregarIconesToolbar(renderer, toolbar);
-
-    Assets assets = carregarTodosAssets(renderer);
-    CropAssets cropAssets = carregarCropAssets(renderer);
-
-    std::array<Canteiro, GRID_COLUNAS * GRID_LINHAS> canteiros;
-
-    for (int linha = 0; linha < GRID_LINHAS; linha++)
+    if (!carregarGameCode(&gc))
     {
-        for (int coluna = 0; coluna < GRID_COLUNAS; coluna++)
-        {
-            int indice = linha * GRID_COLUNAS + coluna;
-            canteiros[indice].coluna = coluna;
-            canteiros[indice].linha = linha;
-            canteiros[indice].estado = BLOQUEADO;
-        }
+        printf("[platform] falha ao carregar game.dll inicial\n");
+        return 1;
     }
 
-    int desbloqueados = 0;
-    for (int linha = 0; linha < GRID_LINHAS && desbloqueados < CANTEIROS_INICIAIS; linha++)
+    gc.init(&estado, renderer);
+    printf("[platform] game.dll carregado — hot-reload ativo\n");
+
+    Uint32 tempoAnterior = SDL_GetTicks();
+    Uint32 ultimaChecagemDll = tempoAnterior;
+
+    while (!estado.solicitouSair)
     {
-        for (int coluna = 0; coluna < GRID_COLUNAS && desbloqueados < CANTEIROS_INICIAIS; coluna += 1)
+        Uint32 tempoAtual = SDL_GetTicks();
+        float dt = (tempoAtual - tempoAnterior) / 1000.0f;
+        tempoAnterior = tempoAtual;
+
+        if (tempoAtual - ultimaChecagemDll > 250)
         {
-            if (coluna < 2)
+            ultimaChecagemDll = tempoAtual;
+            if (dllMudou(&gc))
             {
-                int indice = linha * GRID_COLUNAS + coluna;
-                canteiros[indice].estado = VAZIO;
-                desbloqueados++;
-            }
-        }
-    }
-
-    std::cout << "Fazenda: " << GRID_COLUNAS << "x" << GRID_LINHAS << " (" << CANTEIROS_INICIAIS << "desbloqueados)" << std::endl;
-
-    bool rodando = true;
-
-    SDL_Event evento;
-
-    Uint32 tempo_anterior = SDL_GetTicks();
-
-    float deltaTime = 0.0f;
-
-    Uint32 tempoJogoMs = 0;
-    float velocidadeTempo = VELOCIDADE_TEMPO_NORMAL;
-
-    int canteiroHover = -1;
-    int mouseX = 0;
-    int mouseY = 0;
-
-    int colheitas = 0;
-
-    while (rodando)
-    {
-        Uint32 tempo_atual = SDL_GetTicks();
-
-        deltaTime = (tempo_atual - tempo_anterior) / 1000.0f;
-
-        tempo_anterior = tempo_atual;
-
-        tempoJogoMs += static_cast<Uint32>(deltaTime * velocidadeTempo * 1000.0f);
-
-        while (SDL_PollEvent(&evento))
-        {
-
-            if (evento.type == SDL_QUIT)
-            {
-                rodando = false;
-            }
-
-            if (evento.type == SDL_MOUSEMOTION)
-            {
-                mouseX = evento.motion.x;
-                mouseY = evento.motion.y;
-            }
-
-            if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
-            {
-                if (toolbar.painelAberto)
+                Sleep(100);
+                descarregarGameCode(&gc);
+                if (carregarGameCode(&gc))
                 {
-                    int resultado = painelSementeHitTest(evento.button.x, evento.button.y);
-
-                    if (resultado >= 0)
-                    {
-                        toolbar.sementeSelecionada = resultado;
-                        toolbar.painelAberto = false;
-                    }
-                    else if (resultado == -2)
-                    {
-                        toolbar.painelAberto = false;
-                    }
-                    else if (resultado == -1)
-                    {
-                        toolbar.painelAberto = false;
-                    }
+                    gc.init(&estado, renderer);
+                    printf("[platform] game.dll recarregado\n");
                 }
                 else
                 {
-                    int slotClicado = toolbarHitTest(evento.button.x, evento.button.y);
-
-                    if (slotClicado >= 0)
-                    {
-                        Ferramenta nova = static_cast<Ferramenta>(slotClicado);
-
-                        if (nova == SACOLA)
-                        {
-                            toolbar.painelAberto = !toolbar.painelAberto;
-                            toolbar.selecionada = SACOLA;
-                        }
-                        else
-                        {
-                            toolbar.selecionada = nova;
-                            toolbar.painelAberto = false;
-                        }
-                    }
-                    else if (canteiroHover >= 0)
-                    {
-                        Canteiro &c = canteiros[canteiroHover];
-                        switch (toolbar.selecionada)
-                        {
-                        case ENXADA:
-                            if (c.estado == RESTOS)
-                            {
-                                c.estado = VAZIO;
-                                c.tipoCrop = -1;
-                                c.estagioCrop = 0;
-                            }
-                            break;
-                        case SACOLA:
-                            if (c.estado == VAZIO && toolbar.sementeSelecionada >= 0)
-                            {
-                                c.estado = PLANTADO;
-                                c.tipoCrop = toolbar.sementeSelecionada;
-                                c.estagioCrop = 1;
-                                c.timestampPlantio = tempoJogoMs;
-                                c.temporadaAtual = 1;
-                            }
-                            break;
-                        case MAO:
-                            if (c.estado == MADURO)
-                            {
-                                colheitas++;
-                                c.temporadaAtual++;
-
-                                int totalTemp = TABELA_CROPS[c.tipoCrop].temporadas;
-                                if (c.temporadaAtual <= totalTemp)
-                                {
-                                    c.estado = PLANTADO;
-                                    c.estagioCrop = 1;
-                                    c.timestampPlantio = tempoJogoMs;
-                                }
-                                else
-                                {
-                                    c.estado = RESTOS;
-                                    c.tipoCrop = -1;
-                                    c.estagioCrop = 0;
-                                    c.timestampPlantio = 0;
-                                    c.temporadaAtual = 0;
-                                }
-                            }
-                            break;
-                        case REGADOR:
-                        case REMOVEDOR:
-                        case PESTICIDA:
-                            break;
-                        case CURSOR:
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (evento.type == SDL_KEYDOWN)
-            {
-                if (evento.key.keysym.sym == SDLK_ESCAPE)
-                {
-                    if (toolbar.painelAberto)
-                    {
-                        toolbar.painelAberto = false;
-                    }
-                    else
-                    {
-                        rodando = false;
-                    }
-                }
-
-                if (evento.key.keysym.sym == SDLK_t)
-                {
-                    velocidadeTempo = VELOCIDADE_TEMPO_DEBUG;
-                }
-            }
-
-            if (evento.type == SDL_KEYUP)
-            {
-                if (evento.key.keysym.sym == SDLK_t)
-                {
-                    velocidadeTempo = VELOCIDADE_TEMPO_NORMAL;
-                }
-            }
-        }
-
-        atualizarAnimacoes(toolbar, deltaTime);
-
-        {
-            float colF = telaParaGridColuna(mouseX, mouseY);
-            float linF = telaParaGridLinha(mouseX, mouseY);
-
-            int col = static_cast<int>(floor(colF));
-            int lin = static_cast<int>(floor(linF));
-
-            if (col >= 0 && col < GRID_COLUNAS && lin >= 0 && lin < GRID_LINHAS)
-            {
-                canteiroHover = lin * GRID_COLUNAS + col;
-            }
-            else
-            {
-                canteiroHover = -1;
-            }
-
-            for (int i = 0; i < GRID_COLUNAS * GRID_LINHAS; i++)
-            {
-                Canteiro &c = canteiros[i];
-
-                if (c.estado != PLANTADO)
-                    continue;
-                if (c.tipoCrop < 0)
-                    continue;
-
-                Uint32 passadoMs = tempoJogoMs - c.timestampPlantio;
-
-                Uint32 totalMs = static_cast<Uint32>(TABELA_CROPS[c.tipoCrop].tempoTotalSegundos * 1000);
-
-                float fracao = static_cast<float>(passadoMs) / static_cast<float>(totalMs);
-                if (fracao > 1.0f)
-                    fracao = 1.0f;
-
-                int novoEstagio = static_cast<int>(fracao * TOTAL_ESTAGIOS) + 1;
-                if (novoEstagio > TOTAL_ESTAGIOS)
-                    novoEstagio = TOTAL_ESTAGIOS;
-
-                c.estagioCrop = novoEstagio;
-
-                if (fracao >= 1.0f)
-                {
-                    c.estado = MADURO;
-                }
-            }
-        }
-
-        SDL_SetRenderDrawColor(renderer, 56, 142, 24, 255);
-        SDL_RenderClear(renderer);
-        if (assets.background)
-        {
-            SDL_Rect destBg = {0, -50, LARGURA_JANELA, ALTURA_JANELA + 50};
-            SDL_RenderCopy(renderer, assets.background, nullptr, &destBg);
-        }
-
-        for (int linha = 0; linha < GRID_LINHAS; linha++)
-        {
-            for (int coluna = 0; coluna < GRID_COLUNAS; coluna++)
-            {
-                int telaX = isoParaTelaX(coluna, linha);
-                int telaY = isoParaTelaY(coluna, linha);
-                int indice = linha * GRID_COLUNAS + coluna;
-                Canteiro &c = canteiros[indice];
-
-                switch (c.estado)
-                {
-                case BLOQUEADO:
-                    if (assets.tileGramaEscuro)
-                    {
-                        desenharTile(renderer, assets.tileGramaEscuro, telaX, telaY);
-                    }
-                    else if (assets.tileBloqueado)
-                    {
-                        desenharTile(renderer, assets.tileBloqueado, telaX, telaY);
-                    }
-                    else
-                    {
-                        desenharLosangoPreenchido(renderer, telaX, telaY, 80, 120, 50);
-                    }
-                    break;
-                case VAZIO:
-                    if (assets.tileTerra)
-                    {
-                        desenharTile(renderer, assets.tileTerra, telaX, telaY);
-                    }
-                    else
-                    {
-                        desenharLosangoPreenchido(renderer, telaX, telaY, 139, 100, 60);
-                    }
-                    break;
-                case PLANTADO:
-                    if (assets.tileTerra)
-                    {
-                        desenharTile(renderer, assets.tileTerra, telaX, telaY);
-                    }
-                    else
-                    {
-                        desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
-                    }
-
-                    desenharCrop(renderer, cropAssets, c.tipoCrop, c.estagioCrop, telaX, telaY);
-
-                    if (c.tipoCrop >= 0)
-                    {
-                        Uint32 passado = tempoJogoMs - c.timestampPlantio;
-                        Uint32 total = static_cast<Uint32>(TABELA_CROPS[c.tipoCrop].tempoTotalSegundos) * 1000;
-                        float frac = static_cast<float>(passado) / static_cast<float>(total);
-                        desenharBarraProgresso(renderer, telaX, telaY, frac);
-                    }
-                    break;
-                case MADURO:
-                {
-                    if (assets.tileTerra)
-                    {
-                        desenharTile(renderer, assets.tileTerra, telaX, telaY);
-                    }
-                    else
-                    {
-                        desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
-                    }
-
-                    desenharCrop(renderer, cropAssets, c.tipoCrop, TOTAL_ESTAGIOS, telaX, telaY);
-
+                    printf("[platform] reload falhou — saindo\n");
                     break;
                 }
-                case RESTOS:
-                    if (assets.tileRestos)
-                    {
-                        desenharTile(renderer, assets.tileRestos, telaX, telaY);
-                    }
-                    else
-                    {
-                        desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
-                        SDL_SetRenderDrawColor(renderer, 80, 70, 50, 255);
-                        SDL_RenderDrawLine(renderer, telaX - 6, telaY, telaX + 6, telaY);
-                    }
-
-                    break;
-                }
-
-                if (indice == canteiroHover)
-                {
-                    desenharLosangoContorno(renderer, telaX, telaY, 255, 255, 0);
-                    desenharLosangoContorno(renderer, telaX, telaY, 255, 255, 100, TILE_LARGURA - 4, TILE_ALTURA - 2);
-                }
             }
         }
 
-        if (assets.casa)
-        {
-            SDL_Rect destCasa = {580, 0, 200, 200};
-            SDL_RenderCopyEx(renderer, assets.casa, nullptr, &destCasa,
-                             0.0, nullptr, SDL_FLIP_HORIZONTAL);
-        }
+        gc.frame(&estado, renderer, dt);
 
-        if (assets.casaCachorro)
-        {
-            SDL_Rect destCasinha = {760, 150, 80, 80};
-            SDL_RenderCopyEx(renderer, assets.casaCachorro, nullptr, &destCasinha,
-                             0.0, nullptr, SDL_FLIP_HORIZONTAL);
-        }
-
-        SDL_Texture *sementeIcone = nullptr;
-        if (toolbar.sementeSelecionada >= 0 && toolbar.sementeSelecionada < TOTAL_CROPS)
-        {
-            sementeIcone = cropAssets.sementes[toolbar.sementeSelecionada];
-        }
-
-        desenharToolbar(renderer, toolbar, sementeIcone);
-
-        desenharPainelSementes(renderer, fonte, fontePequena, cropAssets, toolbar);
-
-        desenharCursorFerramenta(renderer, toolbar, mouseX, mouseY, sementeIcone);
-
-        SDL_RenderPresent(renderer);
-
-        Uint32 tempo_frame = SDL_GetTicks() - tempo_atual;
-
-        if (tempo_frame < TEMPO_FRAME_MS)
-        {
-            SDL_Delay(TEMPO_FRAME_MS - tempo_frame);
-        }
+        Uint32 tempoFrame = SDL_GetTicks() - tempoAtual;
+        if (tempoFrame < TEMPO_FRAME_MS)
+            SDL_Delay(TEMPO_FRAME_MS - tempoFrame);
     }
-    liberarCropAssets(cropAssets);
-    liberarAssets(assets);
-    liberarIconesToolbar(toolbar);
-    if (fontePequena)
-        TTF_CloseFont(fontePequena);
-    if (fonte)
-        TTF_CloseFont(fonte);
+
+    descarregarGameCode(&gc);
+
+    if (estado.fonteTooltip) TTF_CloseFont(estado.fonteTooltip);
+    if (estado.fontePequena) TTF_CloseFont(estado.fontePequena);
+    if (estado.fonte) TTF_CloseFont(estado.fonte);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
 
-    std::cout << "Jogo encerrado com sucesso!" << std::endl;
+    printf("Jogo encerrado\n");
     return 0;
 }

@@ -1,11 +1,13 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <cmath>
 
 #include "Constantes.h"
 #include "Tipos.h"
 #include "Assets.h"
+#include "Desenho.h"
 
 inline void carregarIconesToolbar(SDL_Renderer *renderer, Toolbar &toolbar)
 {
@@ -86,6 +88,47 @@ inline void desenharContornoArredondado(SDL_Renderer *renderer, int x, int y, in
         SDL_RenderDrawPoint(renderer, x + raio - dx, y + h - raio + dy);
         SDL_RenderDrawPoint(renderer, x + w - raio + dx, y + h - raio + dy);
     }
+}
+
+inline void desenharTooltipModerno(SDL_Renderer *renderer, TTF_Font *fonte, const char *texto, int centerX, int baixoY)
+{
+    if (!fonte || !texto)
+        return;
+
+    int tw = 0, th = 0;
+    TTF_SizeUTF8(fonte, texto, &tw, &th);
+
+    int padX = 14;
+    int padY = 7;
+    int w = tw + 2 * padX;
+    int h = th + 2 * padY;
+    int raio = h / 2;
+
+    int x = centerX - w / 2;
+    int y = baixoY - h - 22;
+
+    if (x < 4)
+        x = 4;
+    if (x + w > LARGURA_JANELA - 4)
+        x = LARGURA_JANELA - 4 - w;
+    if (y < 4)
+        y = baixoY + 14;
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 90);
+    desenharRetanguloArredondado(renderer, x + 2, y + 4, w, h, raio);
+
+    SDL_SetRenderDrawColor(renderer, 28, 22, 16, 235);
+    desenharRetanguloArredondado(renderer, x, y, w, h, raio);
+
+    SDL_SetRenderDrawColor(renderer, 218, 165, 32, 170);
+    desenharContornoArredondado(renderer, x, y, w, h, raio);
+
+    SDL_Color corTexto = {255, 240, 210, 255};
+    desenharTexto(renderer, fonte, texto, x + w / 2, y + h / 2, corTexto, true);
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 }
 
 inline void atualizarAnimacoes(Toolbar &toolbar, float dt)

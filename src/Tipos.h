@@ -40,6 +40,11 @@ struct Canteiro
     int estagioCrop = 0;
     Uint32 timestampPlantio = 0;
     int temporadaAtual = 0;
+
+    int saude = 100;
+    bool seca = false;
+    int praga = 0;
+    Uint32 ultimoSorteioEventoMs = 0;
 };
 
 enum Ferramenta
@@ -65,6 +70,46 @@ struct Toolbar
     float painelSelAnimacao[15] = {};
     float painelAberturaAnimacao = 0.0f;
 };
+
+inline const char *nomeFerramenta(Ferramenta f)
+{
+    switch (f)
+    {
+    case CURSOR:
+        return "Cursor";
+    case ENXADA:
+        return "Enxada";
+    case SACOLA:
+        return "Sementes";
+    case REGADOR:
+        return "Regador";
+    case REMOVEDOR:
+        return "Removedor de Pragas";
+    case PESTICIDA:
+        return "Pesticida";
+    case MAO:
+        return "Colher";
+    }
+    return "";
+}
+
+inline const char *legendaEstadoCanteiro(EstadoCanteiro e)
+{
+    switch (e)
+    {
+    case BLOQUEADO:
+        return "Terra Bloqueada - Expandir Fazenda";
+    case VAZIO:
+        return "Terra Molhada - Apropriada para Plantação";
+    case PLANTADO:
+        return "Plantação em Crescimento";
+    case MADURO:
+        return "Pronto para Colher";
+    case RESTOS:
+        return "Terra com Restos - Use a Enxada";
+    }
+    return "";
+}
 
 struct Assets
 {

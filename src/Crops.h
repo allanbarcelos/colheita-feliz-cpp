@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib>
 #include "Constantes.h"
 #include "Tipos.h"
 #include "Assets.h"
@@ -33,16 +34,18 @@ static const DadosCrop TABELA_CROPS[TOTAL_CROPS] = {
     {"Pimentão", "pimentao", 60, 140, 2, 100}};
 
 static constexpr int CROP_TAMANHOS[TOTAL_ESTAGIOS] = {
-    24,
-    30,
-    38,
-    44,
-    48};
+    36,
+    46,
+    58,
+    68,
+    76};
 
 struct CropAssets
 {
     SDL_Texture *estagios[TOTAL_CROPS][TOTAL_ESTAGIOS] = {};
     SDL_Texture *sementes[TOTAL_CROPS] = {};
+    SDL_Texture *pragaErvaDaninha[4] = {};
+    SDL_Texture *pragaMinhoca[4] = {};
 };
 
 inline CropAssets carregarCropAssets(SDL_Renderer *renderer)
@@ -60,6 +63,14 @@ inline CropAssets carregarCropAssets(SDL_Renderer *renderer)
 
         snprintf(caminho, sizeof(caminho), "assets/sprites/icons/seeds/semente_%s.png", TABELA_CROPS[tipo].nomeArquivo);
         ca.sementes[tipo] = carregarTextura(renderer, caminho);
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        snprintf(caminho, sizeof(caminho), "assets/sprites/effects/erva_daninha_%d.png", i + 1);
+        ca.pragaErvaDaninha[i] = carregarTextura(renderer, caminho);
+        snprintf(caminho, sizeof(caminho), "assets/sprites/effects/minhoca_%d.png", i + 1);
+        ca.pragaMinhoca[i] = carregarTextura(renderer, caminho);
     }
 
     return ca;
@@ -84,6 +95,20 @@ inline void liberarCropAssets(CropAssets &ca)
             ca.sementes[tipo] = nullptr;
         }
     }
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (ca.pragaErvaDaninha[i])
+        {
+            SDL_DestroyTexture(ca.pragaErvaDaninha[i]);
+            ca.pragaErvaDaninha[i] = nullptr;
+        }
+        if (ca.pragaMinhoca[i])
+        {
+            SDL_DestroyTexture(ca.pragaMinhoca[i]);
+            ca.pragaMinhoca[i] = nullptr;
+        }
+    }
 }
 
 inline void desenharCrop(SDL_Renderer *renderer, const CropAssets &ca, int tipoCrop, int estagio, int telaX, int telaY)
@@ -95,6 +120,8 @@ inline void desenharCrop(SDL_Renderer *renderer, const CropAssets &ca, int tipoC
 
     SDL_Texture *textura = ca.estagios[tipoCrop][estagio - 1];
     int tam = CROP_TAMANHOS[estagio - 1];
+
+    desenharSombraSprite(renderer, telaX, telaY + 2, tam);
 
     if (textura)
     {
@@ -127,37 +154,6 @@ inline int painelSementeSlotX(int coluna)
 inline int painelSementeSlotY(int linha)
 {
     return PAINEL_Y + PAINEL_TITULO_ALTURA + PAINEL_PADDING + linha * (SEMENTE_SLOT_ALTURA + SEMENTE_ESPACO);
-}
-
-inline void desenharTexto(SDL_Renderer *renderer, TTF_Font *fonte, const char *texto, int x, int y, SDL_Color cor, bool centralizar = false)
-{
-    if (!fonte || !texto)
-        return;
-
-    SDL_Surface *superficie = TTF_RenderUTF8_Blended(fonte, texto, cor);
-    if (!superficie)
-        return;
-
-    SDL_Texture *textura = SDL_CreateTextureFromSurface(renderer, superficie);
-    int w = superficie->w;
-    int h = superficie->h;
-    SDL_FreeSurface(superficie);
-
-    if (!textura)
-        return;
-
-    SDL_Rect destino;
-    if (centralizar)
-    {
-        destino = {x - w / 2, y - h / 2, w, h};
-    }
-    else
-    {
-        destino = {x, y, w, h};
-    }
-
-    SDL_RenderCopy(renderer, textura, nullptr, &destino);
-    SDL_DestroyTexture(textura);
 }
 
 inline void desenharPainelSementes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *fontePequena, const CropAssets &ca, const Toolbar &toolbar)
@@ -330,4 +326,82 @@ inline void desenharBarraProgresso(SDL_Renderer *renderer, int telaX, int telaY,
     SDL_SetRenderDrawColor(renderer, 80, 200, 60, 255);
     SDL_Rect preenchido = {bx, by, static_cast<int>(larguraBarra * fracao), alturaBarra};
     SDL_RenderFillRect(renderer, &preenchido);
+}
+
+inline void sortearEventoCanteiro(Canteiro &c, Uint32 tempoJogoMs)
+{
+    if (c.estado != PLANTADO)
+        return;
+
+    if (c.seca || c.praga != 0)
+        return;
+
+    if (tempoJogoMs - c.ultimoSorteioEventoMs < INTERVALO_SORTEIO_EVENTO_MS)
+        return;
+
+    c.ultimoSorteioEventoMs = tempoJogoMs;
+
+    if (rand() % 100 >= CHANCE_EVENTO_PCT)
+        return;
+
+    int estagio = c.estagioCrop;
+    int r = rand() % 100;
+
+    if (estagio <= 2)
+    {
+        if (r < 70)
+            c.seca = true;
+        else
+            c.praga = 2;
+    }
+    else if (estagio == 3)
+    {
+        if (r < 60)
+            c.praga = 2;
+        else
+            c.praga = 1;
+    }
+    else
+    {
+        if (r < 80)
+            c.praga = 1;
+        else
+            c.praga = 2;
+    }
+    c.saude -= PENALIDADE_EVENTO;
+
+    if (c.saude < 0)
+        c.saude = 0;
+}
+
+inline void desenharPragaOverlay(SDL_Renderer *renderer, const CropAssets &ca, int praga, int telaX, int telaY, Uint32 tempoJogoMs)
+{
+    if (praga == 0)
+        return;
+
+    int frame = (tempoJogoMs / 125) % 4;
+
+    SDL_Texture *textura = nullptr;
+    if (praga == 1)
+        textura = ca.pragaErvaDaninha[frame];
+    if (praga == 2)
+        textura = ca.pragaMinhoca[frame];
+
+    const int tam = 52;
+    SDL_Rect destino = {telaX - tam / 2, telaY - 34, tam, tam};
+
+    if (!textura)
+    {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        if (praga == 1)
+            SDL_SetRenderDrawColor(renderer, 40, 180, 40, 220);
+        else
+            SDL_SetRenderDrawColor(renderer, 200, 80, 160, 220);
+        SDL_RenderFillRect(renderer, &destino);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderDrawRect(renderer, &destino);
+        return;
+    }
+
+    SDL_RenderCopy(renderer, textura, nullptr, &destino);
 }
