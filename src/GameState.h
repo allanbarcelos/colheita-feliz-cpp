@@ -10,6 +10,7 @@
 #include "Toolbar.h"
 #include "Crops.h"
 #include "HudAssets.h"
+#include "Missoes.h"
 
 struct GameState
 {
@@ -45,6 +46,16 @@ struct GameState
 
     char logMensagens[5][96];
     int logCount;
+
+    Missao missoesDiarias[3];
+    Uint32 timestampUltimoResetMissoes;
+    bool painelMissoesAberto;
+    float painelMissoesAbertura;
+    float lojaAbertura;
+    float depositoAbertura;
+
+    int ultimoDiaRecompensa;
+    bool recompensaDisponivel;
 
     Assets assets;
     CropAssets cropAssets;

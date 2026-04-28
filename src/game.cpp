@@ -7,6 +7,9 @@
 #include "Hud.h"
 #include "Loja.h"
 #include "Deposito.h"
+#include "Missoes.h"
+#include "PainelMissoes.h"
+#include "RecompensaDiaria.h"
 
 #include <cmath>
 
@@ -95,6 +98,15 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     for (int i = 0; i < 5; i++)
         s->logMensagens[i][0] = '\0';
 
+    sortearMissoesDiarias(s->missoesDiarias);
+    s->timestampUltimoResetMissoes = 0;
+    s->painelMissoesAberto = false;
+    s->painelMissoesAbertura = 0.0f;
+    s->lojaAbertura = 0.0f;
+    s->depositoAbertura = 0.0f;
+    s->ultimoDiaRecompensa = -1;
+    s->recompensaDisponivel = true;
+
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
         s->inventarioSementes[i] = 0;
@@ -128,6 +140,46 @@ static void processarEventos(GameState *s)
 
         if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
         {
+            if (caixaRecompensaClicada(evento.button.x, evento.button.y, s->recompensaDisponivel))
+            {
+                char msg[96];
+                sortearRecompensaDiaria(&s->ouro, &s->moedasVerdes,
+                                         s->inventarioSementes, msg, sizeof(msg));
+                adicionarLog(s, msg);
+                s->recompensaDisponivel = false;
+                s->ultimoDiaRecompensa = static_cast<int>(s->tempoJogoMs / RESET_DIARIO_MS);
+                continue;
+            }
+
+            if (s->painelMissoesAberto)
+            {
+                int hit = painelMissoesHitTest(evento.button.x, evento.button.y, s->missoesDiarias);
+                if (hit == -2)
+                {
+                    s->painelMissoesAberto = false;
+                }
+                else if (hit >= 0)
+                {
+                    Missao &m = s->missoesDiarias[hit];
+                    if (m.concluida && !m.coletada)
+                    {
+                        s->ouro += m.recompensaOuro;
+                        s->moedasVerdes += m.recompensaVerdes;
+                        s->xp += m.recompensaXp;
+                        m.coletada = true;
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "Missao coletada (+%d ouro, +%d verdes, +%d XP)",
+                                 m.recompensaOuro, m.recompensaVerdes, m.recompensaXp);
+                        adicionarLog(s, msg);
+                    }
+                }
+                else if (hit == -1)
+                {
+                    s->painelMissoesAberto = false;
+                }
+                continue;
+            }
+
             int botaoHud = hudDireitoHitTest(evento.button.x, evento.button.y);
             if (botaoHud >= 0)
             {
@@ -138,12 +190,14 @@ static void processarEventos(GameState *s)
                     s->lojaAberta = false;
                     s->modoCompraCanteiro = false;
                     s->toolbar.painelAberto = false;
+                    s->painelMissoesAberto = false;
                     break;
                 case 1:
                     s->lojaAberta = !s->lojaAberta;
                     s->depositoAberto = false;
                     s->modoCompraCanteiro = false;
                     s->toolbar.painelAberto = false;
+                    s->painelMissoesAberto = false;
                     break;
                 case 2:
                     adicionarLog(s, "Amigos em breve (fase 16)");
@@ -152,7 +206,9 @@ static void processarEventos(GameState *s)
                     adicionarLog(s, "Ranking em breve");
                     break;
                 case 4:
-                    adicionarLog(s, "Sem avisos novos");
+                    s->painelMissoesAberto = !s->painelMissoesAberto;
+                    s->lojaAberta = false;
+                    s->depositoAberto = false;
                     break;
                 }
                 continue;
@@ -168,13 +224,21 @@ static void processarEventos(GameState *s)
                 }
                 else if (resLoja >= 0)
                 {
+                    if (!atingiuNivel(s->xp, TABELA_CROPS[resLoja].nivelDesbloqueio))
+                    {
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
+                                 TABELA_CROPS[resLoja].nome, TABELA_CROPS[resLoja].nivelDesbloqueio);
+                        adicionarLog(s, msg);
+                        continue;
+                    }
 
                     int preco = TABELA_CROPS[resLoja].precoCompra;
                     if (s->ouro >= preco)
                     {
                         s->ouro -= preco;
                         s->inventarioSementes[resLoja]++;
-                                              char msg[96];
+                        char msg[96];
                         snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
                                  TABELA_CROPS[resLoja].nome, preco);
                         adicionarLog(s, msg);
@@ -283,6 +347,15 @@ static void processarEventos(GameState *s)
                         {
                             int sem = s->toolbar.sementeSelecionada;
 
+                            if (!atingiuNivel(s->xp, TABELA_CROPS[sem].nivelDesbloqueio))
+                            {
+                                char msg[96];
+                                snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
+                                         TABELA_CROPS[sem].nome, TABELA_CROPS[sem].nivelDesbloqueio);
+                                adicionarLog(s, msg);
+                                break;
+                            }
+
                             if (s->inventarioSementes[sem] > 0)
                             {
                                 s->inventarioSementes[sem]--;
@@ -300,6 +373,7 @@ static void processarEventos(GameState *s)
                                 char msg[96];
                                 snprintf(msg, sizeof(msg), "Plantou %s", TABELA_CROPS[sem].nome);
                                 adicionarLog(s, msg);
+                                incrementarProgressoMissao(s->missoesDiarias, MISSAO_PLANTAR);
                             }
                         }
                         break;
@@ -318,6 +392,7 @@ static void processarEventos(GameState *s)
                                 snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)",
                                          TABELA_CROPS[c.tipoCrop].nome, ganho);
                                 adicionarLog(s, msg);
+                                incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
                             }
 
                             c.temporadaAtual++;
@@ -353,7 +428,9 @@ static void processarEventos(GameState *s)
                             c.seca = false;
                             c.ultimoSorteioEventoMs = s->tempoJogoMs;
                             s->xp += 2;
-                            adicionarLog(s, "Regou canteiro (+2 XP)");                        }
+                            adicionarLog(s, "Regou canteiro (+2 XP)");
+                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
+                        }
                         break;
                     case REMOVEDOR:
                         if (c.praga == 1)
@@ -361,7 +438,9 @@ static void processarEventos(GameState *s)
                             c.praga = 0;
                             c.ultimoSorteioEventoMs = s->tempoJogoMs;
                             s->xp += 2;
-                            adicionarLog(s, "Removeu erva daninha (+2 XP)");                        }
+                            adicionarLog(s, "Removeu erva daninha (+2 XP)");
+                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                        }
                         break;
                     case PESTICIDA:
                         if (c.praga == 2)
@@ -369,7 +448,9 @@ static void processarEventos(GameState *s)
                             c.praga = 0;
                             c.ultimoSorteioEventoMs = s->tempoJogoMs;
                             s->xp += 2;
-                            adicionarLog(s, "Aplicou pesticida (+2 XP)");                        }
+                            adicionarLog(s, "Aplicou pesticida (+2 XP)");
+                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                        }
                         break;
                     case CURSOR:
                         break;
@@ -647,10 +728,13 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
     desenharHudEsquerdo(renderer, s->fonte, s->fontePequena, s->fonteHud, s->hudAssets,
                         s->xp, s->ouro, s->moedasVerdes, s->popularidade, s->generoJogador);
     desenharHudDireito(renderer, s->fontePequena, s->hudAssets, s->hudDireitoHover);
+    desenharCaixaRecompensa(renderer, s->hudAssets, s->recompensaDisponivel, s->tempoJogoMs);
     desenharLogEventos(renderer, s->fontePequena, *s);
 
-    desenharPainelSementes(renderer, s->fonte, s->fontePequena, s->cropAssets, s->toolbar);
-    bool forcarCursor = s->lojaAberta || s->depositoAberto || s->modoCompraCanteiro;
+    desenharPainelSementes(renderer, s->fonte, s->fontePequena, s->cropAssets, s->toolbar, s->xp);
+    desenharPainelMissoes(renderer, s->fonte, s->fontePequena, s->hudAssets,
+                           s->missoesDiarias, s->painelMissoesAbertura);
+    bool forcarCursor = s->lojaAberta || s->depositoAberto || s->modoCompraCanteiro || s->painelMissoesAberto;
     desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, sementeIcone, forcarCursor);
 
     SDL_RenderPresent(renderer);
@@ -659,6 +743,34 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
 GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
 {
     s->tempoJogoMs += static_cast<Uint32>(dt * s->velocidadeTempo * 1000.0f);
+
+    if (s->tempoJogoMs - s->timestampUltimoResetMissoes >= RESET_DIARIO_MS)
+    {
+        s->timestampUltimoResetMissoes = s->tempoJogoMs;
+        sortearMissoesDiarias(s->missoesDiarias);
+        adicionarLog(s, "Novas missoes diarias!");
+    }
+
+    int diaAtual = static_cast<int>(s->tempoJogoMs / RESET_DIARIO_MS);
+    if (diaAtual != s->ultimoDiaRecompensa)
+        s->recompensaDisponivel = true;
+
+    {
+        float velocidade = 9.0f;
+        struct AnimAlvo { float *valor; bool aberto; };
+        AnimAlvo alvos[] = {
+            {&s->painelMissoesAbertura, s->painelMissoesAberto},
+            {&s->lojaAbertura,          s->lojaAberta},
+            {&s->depositoAbertura,      s->depositoAberto},
+        };
+        for (auto &a : alvos)
+        {
+            float alvo = a.aberto ? 1.0f : 0.0f;
+            *a.valor += (alvo - *a.valor) * velocidade * dt;
+            if (*a.valor < 0.005f) *a.valor = 0.0f;
+            if (*a.valor > 0.995f) *a.valor = 1.0f;
+        }
+    }
 
     processarEventos(s);
     atualizarAnimacoes(s->toolbar, dt);

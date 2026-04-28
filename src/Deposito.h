@@ -12,22 +12,35 @@
 
 inline void desenharDeposito(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *fontePequena, const CropAssets &ca, const GameState &s)
 {
-    if (!s.depositoAberto)
+    float abertura = s.depositoAbertura;
+    if (abertura < 0.01f)
         return;
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 100);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, static_cast<Uint8>(100 * abertura));
     SDL_Rect overlay = {0, 0, LARGURA_JANELA, ALTURA_JANELA};
     SDL_RenderFillRect(renderer, &overlay);
 
-    SDL_SetRenderDrawColor(renderer, 180, 140, 60, 255);
-    SDL_Rect bordaExterna = {PAINEL_X - 3, PAINEL_Y - 3, PAINEL_LARGURA + 6, PAINEL_ALTURA + 6};
+    float scale = 0.85f + 0.15f * abertura;
+    int pw = static_cast<int>(PAINEL_LARGURA * scale);
+    int ph = static_cast<int>(PAINEL_ALTURA * scale);
+    int px = PAINEL_X + (PAINEL_LARGURA - pw) / 2;
+    int py = PAINEL_Y + (PAINEL_ALTURA - ph) / 2;
+
+    SDL_SetRenderDrawColor(renderer, 180, 140, 60, static_cast<Uint8>(255 * abertura));
+    SDL_Rect bordaExterna = {px - 3, py - 3, pw + 6, ph + 6};
     SDL_RenderFillRect(renderer, &bordaExterna);
 
-    SDL_SetRenderDrawColor(renderer, 54, 40, 26, 240);
-    SDL_Rect fundo = {PAINEL_X, PAINEL_Y, PAINEL_LARGURA, PAINEL_ALTURA};
+    SDL_SetRenderDrawColor(renderer, 54, 40, 26, static_cast<Uint8>(240 * abertura));
+    SDL_Rect fundo = {px, py, pw, ph};
     SDL_RenderFillRect(renderer, &fundo);
+
+    if (abertura < 0.6f)
+    {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        return;
+    }
 
     SDL_SetRenderDrawColor(renderer, 140, 105, 50, 255);
     SDL_Rect barraTitulo = {PAINEL_X, PAINEL_Y, PAINEL_LARGURA, PAINEL_TITULO_ALTURA};

@@ -8,27 +8,40 @@
 #include "Tipos.h"
 #include "Desenho.h"
 #include "Crops.h"
+#include "Player.h"
 #include "GameState.h"
 
 inline void desenharLoja(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *fontePequena, const CropAssets &ca, const GameState &s)
 {
-
-    if (!s.lojaAberta)
+    float abertura = s.lojaAbertura;
+    if (abertura < 0.01f)
         return;
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 100);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, static_cast<Uint8>(100 * abertura));
     SDL_Rect overlay = {0, 0, LARGURA_JANELA, ALTURA_JANELA};
     SDL_RenderFillRect(renderer, &overlay);
 
-    SDL_SetRenderDrawColor(renderer, 180, 140, 60, 255);
-    SDL_Rect bordaExterna = {PAINEL_X - 3, PAINEL_Y - 3, PAINEL_LARGURA + 6, PAINEL_ALTURA + 6};
+    float scale = 0.85f + 0.15f * abertura;
+    int pw = static_cast<int>(PAINEL_LARGURA * scale);
+    int ph = static_cast<int>(PAINEL_ALTURA * scale);
+    int px = PAINEL_X + (PAINEL_LARGURA - pw) / 2;
+    int py = PAINEL_Y + (PAINEL_ALTURA - ph) / 2;
+
+    SDL_SetRenderDrawColor(renderer, 180, 140, 60, static_cast<Uint8>(255 * abertura));
+    SDL_Rect bordaExterna = {px - 3, py - 3, pw + 6, ph + 6};
     SDL_RenderFillRect(renderer, &bordaExterna);
 
-    SDL_SetRenderDrawColor(renderer, 54, 40, 26, 240);
-    SDL_Rect fundo = {PAINEL_X, PAINEL_Y, PAINEL_LARGURA, PAINEL_ALTURA};
+    SDL_SetRenderDrawColor(renderer, 54, 40, 26, static_cast<Uint8>(240 * abertura));
+    SDL_Rect fundo = {px, py, pw, ph};
     SDL_RenderFillRect(renderer, &fundo);
+
+    if (abertura < 0.6f)
+    {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        return;
+    }
 
     SDL_SetRenderDrawColor(renderer, 140, 105, 50, 255);
     SDL_Rect barraTitulo = {PAINEL_X, PAINEL_Y, PAINEL_LARGURA, PAINEL_TITULO_ALTURA};
@@ -50,7 +63,12 @@ inline void desenharLoja(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *font
         int sx = painelSementeSlotX(col);
         int sy = painelSementeSlotY(lin);
 
-        SDL_SetRenderDrawColor(renderer, 70, 55, 35, 220);
+        bool desbloqueada = atingiuNivel(s.xp, TABELA_CROPS[i].nivelDesbloqueio);
+
+        if (desbloqueada)
+            SDL_SetRenderDrawColor(renderer, 70, 55, 35, 220);
+        else
+            SDL_SetRenderDrawColor(renderer, 30, 25, 20, 220);
         desenharRetanguloArredondado(renderer, sx, sy, SEMENTE_SLOT_LARGURA, SEMENTE_SLOT_ALTURA, 6);
 
         if (ca.sementes[i])
@@ -60,16 +78,31 @@ inline void desenharLoja(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *font
             int iconeX = sx + (SEMENTE_SLOT_LARGURA - tamIcone) / 2;
             int iconeY = sy + padding;
             SDL_Rect destino = {iconeX, iconeY, tamIcone, tamIcone};
+            if (!desbloqueada) SDL_SetTextureAlphaMod(ca.sementes[i], 70);
             SDL_RenderCopy(renderer, ca.sementes[i], nullptr, &destino);
+            if (!desbloqueada) SDL_SetTextureAlphaMod(ca.sementes[i], 255);
         }
 
-        SDL_Color corNome = {230, 220, 200, 255};
-        desenharTexto(renderer, fontePequena, TABELA_CROPS[i].nome, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 26, corNome, true);
+        if (desbloqueada)
+        {
+            SDL_Color corNome = {230, 220, 200, 255};
+            desenharTexto(renderer, fontePequena, TABELA_CROPS[i].nome, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 26, corNome, true);
 
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "%d ouro", TABELA_CROPS[i].precoCompra);
-        SDL_Color corPreco = {255, 220, 100, 255};
-        desenharTexto(renderer, fontePequena, buffer, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 12, corPreco, true);
+            char buffer[32];
+            snprintf(buffer, sizeof(buffer), "%d ouro", TABELA_CROPS[i].precoCompra);
+            SDL_Color corPreco = {255, 220, 100, 255};
+            desenharTexto(renderer, fontePequena, buffer, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 12, corPreco, true);
+        }
+        else
+        {
+            SDL_Color corCinza = {130, 130, 130, 255};
+            desenharTexto(renderer, fontePequena, TABELA_CROPS[i].nome, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 26, corCinza, true);
+
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Nv %d", TABELA_CROPS[i].nivelDesbloqueio);
+            SDL_Color corBloq = {200, 120, 120, 255};
+            desenharTexto(renderer, fontePequena, buf, sx + SEMENTE_SLOT_LARGURA / 2, sy + SEMENTE_SLOT_ALTURA - 12, corBloq, true);
+        }
     }
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
