@@ -59,3 +59,7 @@ static constexpr int HUD_ESPACO_Y = 4;
 static constexpr int PRECO_CANTEIRO_BASE = 100;
 static constexpr int PRECO_CANTEIRO_INCREMENTO = 30;
 
+static constexpr int XP_BASE_POR_NIVEL = 100;
+static constexpr int XP_INCREMENTO_POR_NIVEL = 50;
+static constexpr int POPULARIDADE_MAX = 100;
+
