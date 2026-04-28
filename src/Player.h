@@ -35,3 +35,8 @@ inline int xpDoNivel(int xpTotal)
     int nivel = nivelDoJogador(xpTotal);
     return XP_BASE_POR_NIVEL + nivel * XP_INCREMENTO_POR_NIVEL;
 }
+
+inline bool atingiuNivel(int xpTotal, int nivelMinimo)
+{
+    return nivelDoJogador(xpTotal) >= nivelMinimo;
+}

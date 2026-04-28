@@ -4,6 +4,7 @@
 #include "Constantes.h"
 #include "Tipos.h"
 #include "Assets.h"
+#include "Player.h"
 #include <SDL2/SDL_ttf.h>
 
 struct DadosCrop
@@ -14,24 +15,25 @@ struct DadosCrop
     int precoVenda;
     int temporadas;
     int tempoTotalSegundos;
+    int nivelDesbloqueio;
 };
 
 static const DadosCrop TABELA_CROPS[TOTAL_CROPS] = {
-    {"Nabo", "nabo", 10, 20, 4, 50},
-    {"Cenoura", "cenoura", 15, 30, 3, 60},
-    {"Tomate", "tomate", 20, 45, 3, 70},
-    {"Milho", "milho", 25, 55, 2, 80},
-    {"Morango", "morango", 30, 65, 3, 75},
-    {"Batata", "batata", 18, 40, 3, 65},
-    {"Melancia", "melancia", 50, 120, 1, 120},
-    {"Arroz", "arroz", 22, 50, 2, 70},
-    {"Girassol", "girassol", 35, 75, 1, 90},
-    {"Repolho", "repolho", 20, 42, 2, 65},
-    {"Abóbora", "abobora", 45, 100, 1, 110},
-    {"Berinjela", "berinjela", 55, 130, 2, 100},
-    {"Uva", "uva", 70, 160, 3, 110},
-    {"Pepino", "pepino", 25, 52, 2, 70},
-    {"Pimentão", "pimentao", 60, 140, 2, 100}};
+    {"Nabo",      "nabo",      10, 20,  4, 50,  1},
+    {"Cenoura",   "cenoura",   15, 30,  3, 60,  1},
+    {"Tomate",    "tomate",    20, 45,  3, 70,  1},
+    {"Milho",     "milho",     25, 55,  2, 80,  6},
+    {"Morango",   "morango",   30, 65,  3, 75,  3},
+    {"Batata",    "batata",    18, 40,  3, 65,  2},
+    {"Melancia",  "melancia",  50, 120, 1, 120, 8},
+    {"Arroz",     "arroz",     22, 50,  2, 70,  2},
+    {"Girassol",  "girassol",  35, 75,  1, 90,  4},
+    {"Repolho",   "repolho",   20, 42,  2, 65,  1},
+    {"Abóbora",   "abobora",   45, 100, 1, 110, 5},
+    {"Berinjela", "berinjela", 55, 130, 2, 100, 6},
+    {"Uva",       "uva",       70, 160, 3, 110, 8},
+    {"Pepino",    "pepino",    25, 52,  2, 70,  2},
+    {"Pimentão",  "pimentao",  60, 140, 2, 100, 7}};
 
 static constexpr int CROP_TAMANHOS[TOTAL_ESTAGIOS] = {
     36,
@@ -156,7 +158,7 @@ inline int painelSementeSlotY(int linha)
     return PAINEL_Y + PAINEL_TITULO_ALTURA + PAINEL_PADDING + linha * (SEMENTE_SLOT_ALTURA + SEMENTE_ESPACO);
 }
 
-inline void desenharPainelSementes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *fontePequena, const CropAssets &ca, const Toolbar &toolbar)
+inline void desenharPainelSementes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *fontePequena, const CropAssets &ca, const Toolbar &toolbar, int xpJogador)
 {
     float abertura = toolbar.painelAberturaAnimacao;
     if (abertura < 0.01f)
@@ -224,11 +226,19 @@ inline void desenharPainelSementes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_
         int sy = painelSementeSlotY(lin);
 
         float anim = toolbar.painelSelAnimacao[i];
+        bool desbloqueada = atingiuNivel(xpJogador, TABELA_CROPS[i].nivelDesbloqueio);
 
-        int bgR = 70 + static_cast<int>(30 * anim);
-        int bgG = 55 + static_cast<int>(25 * anim);
-        int bgB = 35 + static_cast<int>(5 * anim);
-        SDL_SetRenderDrawColor(renderer, bgR, bgG, bgB, static_cast<Uint8>(200 * conteudoAlfa));
+        if (desbloqueada)
+        {
+            int bgR = 70 + static_cast<int>(30 * anim);
+            int bgG = 55 + static_cast<int>(25 * anim);
+            int bgB = 35 + static_cast<int>(5 * anim);
+            SDL_SetRenderDrawColor(renderer, bgR, bgG, bgB, static_cast<Uint8>(200 * conteudoAlfa));
+        }
+        else
+        {
+            SDL_SetRenderDrawColor(renderer, 30, 25, 20, static_cast<Uint8>(200 * conteudoAlfa));
+        }
         desenharRetanguloArredondado(renderer, sx, sy, SEMENTE_SLOT_LARGURA, SEMENTE_SLOT_ALTURA, 6);
 
         if (ca.sementes[i])
@@ -238,13 +248,28 @@ inline void desenharPainelSementes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_
             int iconeX = sx + (SEMENTE_SLOT_LARGURA - tamIcone) / 2;
             int iconeY = sy + padding;
             SDL_Rect destino = {iconeX, iconeY, tamIcone, tamIcone};
+            if (!desbloqueada) SDL_SetTextureAlphaMod(ca.sementes[i], 70);
             SDL_RenderCopy(renderer, ca.sementes[i], nullptr, &destino);
+            if (!desbloqueada) SDL_SetTextureAlphaMod(ca.sementes[i], 255);
         }
 
-        desenharTexto(renderer, fontePequena, TABELA_CROPS[i].nome,
-                      sx + SEMENTE_SLOT_LARGURA / 2,
-                      sy + SEMENTE_SLOT_ALTURA - 12,
-                      anim > 0.5f ? corNomeSel : corNome, true);
+        if (desbloqueada)
+        {
+            desenharTexto(renderer, fontePequena, TABELA_CROPS[i].nome,
+                          sx + SEMENTE_SLOT_LARGURA / 2,
+                          sy + SEMENTE_SLOT_ALTURA - 12,
+                          anim > 0.5f ? corNomeSel : corNome, true);
+        }
+        else
+        {
+            char buf[24];
+            snprintf(buf, sizeof(buf), "Nv %d", TABELA_CROPS[i].nivelDesbloqueio);
+            SDL_Color corBloq = {200, 120, 120, static_cast<Uint8>(255 * conteudoAlfa)};
+            desenharTexto(renderer, fontePequena, buf,
+                          sx + SEMENTE_SLOT_LARGURA / 2,
+                          sy + SEMENTE_SLOT_ALTURA - 12,
+                          corBloq, true);
+        }
 
         if (anim > 0.01f)
         {
