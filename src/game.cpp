@@ -51,18 +51,19 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
         return;
     }
 
-    s->fonte = TTF_OpenFont("assets/fonts/Nunito.ttf", 18);
-    s->fontePequena = TTF_OpenFont("assets/fonts/Nunito.ttf", 14);
-    s->fonteTooltip = TTF_OpenFont("assets/fonts/Nunito.ttf", 16);
-    if (s->fonteTooltip)
-    {
-        TTF_SetFontHinting(s->fonteTooltip, TTF_HINTING_LIGHT);
-        TTF_SetFontStyle(s->fonteTooltip, TTF_STYLE_BOLD);
-    }
+    s->fonte = TTF_OpenFont("assets/fonts/Poppins-SemiBold.ttf", 17);
+    s->fontePequena = TTF_OpenFont("assets/fonts/Poppins-Bold.ttf", 14);
+    s->fonteTooltip = TTF_OpenFont("assets/fonts/Poppins-SemiBold.ttf", 16);
+    s->fonteHud = TTF_OpenFont("assets/fonts/Poppins-Bold.ttf", 20);
+    if (s->fonte)         TTF_SetFontHinting(s->fonte,         TTF_HINTING_LIGHT);
+    if (s->fontePequena)  TTF_SetFontHinting(s->fontePequena,  TTF_HINTING_LIGHT);
+    if (s->fonteTooltip)  TTF_SetFontHinting(s->fonteTooltip,  TTF_HINTING_LIGHT);
+    if (s->fonteHud)      TTF_SetFontHinting(s->fonteHud,      TTF_HINTING_LIGHT);
 
     carregarIconesToolbar(renderer, s->toolbar);
     s->assets = carregarTodosAssets(renderer);
     s->cropAssets = carregarCropAssets(renderer);
+    s->hudAssets = carregarHudAssets(renderer);
 
     inicializarCanteiros(s);
 
@@ -70,6 +71,8 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->toolbar.sementeSelecionada = -1;
     s->toolbar.painelAberto = false;
     s->moedasVerdes = 0;
+    s->popularidade = 0;
+    s->generoJogador = 0;
 
     s->tempoJogoMs = 0;
     s->velocidadeTempo = VELOCIDADE_TEMPO_NORMAL;
@@ -78,6 +81,7 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->ouro = 100;
     s->canteiroHover = -1;
     s->toolbarHover = -1;
+    s->hudDireitoHover = -1;
     s->mouseX = 0;
     s->mouseY = 0;
     s->solicitouSair = false;
@@ -86,6 +90,10 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->depositoAberto = false;
     s->canteirosComprados = 0;
     s->modoCompraCanteiro = false;
+
+    s->logCount = 0;
+    for (int i = 0; i < 5; i++)
+        s->logMensagens[i][0] = '\0';
 
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
@@ -120,6 +128,35 @@ static void processarEventos(GameState *s)
 
         if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
         {
+            int botaoHud = hudDireitoHitTest(evento.button.x, evento.button.y);
+            if (botaoHud >= 0)
+            {
+                switch (botaoHud)
+                {
+                case 0:
+                    s->depositoAberto = !s->depositoAberto;
+                    s->lojaAberta = false;
+                    s->modoCompraCanteiro = false;
+                    s->toolbar.painelAberto = false;
+                    break;
+                case 1:
+                    s->lojaAberta = !s->lojaAberta;
+                    s->depositoAberto = false;
+                    s->modoCompraCanteiro = false;
+                    s->toolbar.painelAberto = false;
+                    break;
+                case 2:
+                    adicionarLog(s, "Amigos em breve (fase 16)");
+                    break;
+                case 3:
+                    adicionarLog(s, "Ranking em breve");
+                    break;
+                case 4:
+                    adicionarLog(s, "Sem avisos novos");
+                    break;
+                }
+                continue;
+            }
 
             if (s->lojaAberta)
             {
@@ -137,6 +174,10 @@ static void processarEventos(GameState *s)
                     {
                         s->ouro -= preco;
                         s->inventarioSementes[resLoja]++;
+                                              char msg[96];
+                        snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
+                                 TABELA_CROPS[resLoja].nome, preco);
+                        adicionarLog(s, msg);
                     }
                 }
                 else if (resLoja == -1)
@@ -159,6 +200,10 @@ static void processarEventos(GameState *s)
                 {
                     if (s->valorDeposito > 0)
                     {
+                                              char msg[96];
+                        snprintf(msg, sizeof(msg), "Vendeu deposito (+%d ouro)", s->valorDeposito);
+                        adicionarLog(s, msg);
+
                         s->ouro += s->valorDeposito;
                         s->valorDeposito = 0;
 
@@ -216,6 +261,9 @@ static void processarEventos(GameState *s)
                             s->ouro -= preco;
                             c.estado = VAZIO;
                             s->canteirosComprados++;
+                            char msg[96];
+                            snprintf(msg, sizeof(msg), "Canteiro desbloqueado (-%d ouro)", preco);
+                            adicionarLog(s, msg);
                         }
                         continue;
                     }
@@ -231,7 +279,7 @@ static void processarEventos(GameState *s)
                         }
                         break;
                     case SACOLA:
-                        if (c.estado == VAZIO && s->toolbar.sementeSelecionada >= 0)
+                        if (c.estado == VAZIO && !c.seca && s->toolbar.sementeSelecionada >= 0)
                         {
                             int sem = s->toolbar.sementeSelecionada;
 
@@ -248,6 +296,10 @@ static void processarEventos(GameState *s)
                                 c.seca = false;
                                 c.praga = 0;
                                 c.ultimoSorteioEventoMs = s->tempoJogoMs;
+
+                                char msg[96];
+                                snprintf(msg, sizeof(msg), "Plantou %s", TABELA_CROPS[sem].nome);
+                                adicionarLog(s, msg);
                             }
                         }
                         break;
@@ -260,6 +312,13 @@ static void processarEventos(GameState *s)
 
                             s->valorDeposito += ganho;
                             s->inventarioColhidos[c.tipoCrop]++;
+
+                            {
+                                char msg[96];
+                                snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)",
+                                         TABELA_CROPS[c.tipoCrop].nome, ganho);
+                                adicionarLog(s, msg);
+                            }
 
                             c.temporadaAtual++;
 
@@ -292,22 +351,26 @@ static void processarEventos(GameState *s)
                         if (c.seca)
                         {
                             c.seca = false;
+                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
                             s->xp += 2;
-                        }
+                            adicionarLog(s, "Regou canteiro (+2 XP)");                        }
                         break;
                     case REMOVEDOR:
                         if (c.praga == 1)
                         {
                             c.praga = 0;
+                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
                             s->xp += 2;
-                        }
+                            adicionarLog(s, "Removeu erva daninha (+2 XP)");                        }
                         break;
                     case PESTICIDA:
                         if (c.praga == 2)
                         {
                             c.praga = 0;
+                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
                             s->xp += 2;
-                        }
+                            adicionarLog(s, "Aplicou pesticida (+2 XP)");                        }
+                        break;
                     case CURSOR:
                         break;
                     }
@@ -383,6 +446,10 @@ static void atualizarHover(GameState *s)
     s->toolbarHover = s->toolbar.painelAberto ? -1 : toolbarHitTest(s->mouseX, s->mouseY);
     if (s->toolbarHover >= 0)
         s->canteiroHover = -1;
+
+    s->hudDireitoHover = hudDireitoHitTest(s->mouseX, s->mouseY);
+    if (s->hudDireitoHover >= 0)
+        s->canteiroHover = -1;
 }
 
 static void atualizarCrescimento(GameState *s)
@@ -390,23 +457,24 @@ static void atualizarCrescimento(GameState *s)
     for (int i = 0; i < GRID_COLUNAS * GRID_LINHAS; i++)
     {
         Canteiro &c = s->canteiros[i];
-        if (c.estado != PLANTADO || c.tipoCrop < 0)
-            continue;
 
-        Uint32 passadoMs = s->tempoJogoMs - c.timestampPlantio;
-        Uint32 totalMs = static_cast<Uint32>(TABELA_CROPS[c.tipoCrop].tempoTotalSegundos) * 1000;
+        if (c.estado == PLANTADO && c.tipoCrop >= 0)
+        {
+            Uint32 passadoMs = s->tempoJogoMs - c.timestampPlantio;
+            Uint32 totalMs = static_cast<Uint32>(TABELA_CROPS[c.tipoCrop].tempoTotalSegundos) * 1000;
 
-        float fracao = static_cast<float>(passadoMs) / static_cast<float>(totalMs);
-        if (fracao > 1.0f)
-            fracao = 1.0f;
+            float fracao = static_cast<float>(passadoMs) / static_cast<float>(totalMs);
+            if (fracao > 1.0f)
+                fracao = 1.0f;
 
-        int novoEstagio = static_cast<int>(fracao * TOTAL_ESTAGIOS) + 1;
-        if (novoEstagio > TOTAL_ESTAGIOS)
-            novoEstagio = TOTAL_ESTAGIOS;
+            int novoEstagio = static_cast<int>(fracao * TOTAL_ESTAGIOS) + 1;
+            if (novoEstagio > TOTAL_ESTAGIOS)
+                novoEstagio = TOTAL_ESTAGIOS;
 
-        c.estagioCrop = novoEstagio;
-        if (fracao >= 1.0f)
-            c.estado = MADURO;
+            c.estagioCrop = novoEstagio;
+            if (fracao >= 1.0f)
+                c.estado = MADURO;
+        }
 
         sortearEventoCanteiro(c, s->tempoJogoMs);
     }
@@ -425,23 +493,21 @@ static void desenharTileEstado(SDL_Renderer *renderer, const Assets &assets, con
             desenharLosangoPreenchido(renderer, telaX, telaY, 80, 120, 50);
         break;
     case VAZIO:
-        if (assets.tileTerra)
+        if (c.seca && assets.tileTerraSeca)
+            desenharTile(renderer, assets.tileTerraSeca, telaX, telaY);
+        else if (assets.tileTerra)
             desenharTile(renderer, assets.tileTerra, telaX, telaY);
         else
             desenharLosangoPreenchido(renderer, telaX, telaY, 139, 100, 60);
         break;
     case PLANTADO:
-        if (c.seca && assets.tileTerraSeca)
-            desenharTile(renderer, assets.tileTerraSeca, telaX, telaY);
-        else if (assets.tileTerra)
+        if (assets.tileTerra)
             desenharTile(renderer, assets.tileTerra, telaX, telaY);
         else
             desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
         break;
     case MADURO:
-        if (c.seca && assets.tileTerraSeca)
-            desenharTile(renderer, assets.tileTerraSeca, telaX, telaY);
-        else if (assets.tileTerra)
+        if (assets.tileTerra)
             desenharTile(renderer, assets.tileTerra, telaX, telaY);
         else
             desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
@@ -525,9 +591,18 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
         Canteiro &cHov = s->canteiros[s->canteiroHover];
         int tx = isoParaTelaX(cHov.coluna, cHov.linha);
         int ty = isoParaTelaY(cHov.coluna, cHov.linha);
-        desenharTooltipModerno(renderer, s->fonteTooltip,
-                               legendaEstadoCanteiro(cHov.estado),
-                               tx, ty - TILE_ALTURA / 2 - 4);
+
+        if ((cHov.estado == PLANTADO || cHov.estado == MADURO) && cHov.tipoCrop >= 0)
+        {
+            desenharTooltipPlanta(renderer, s->fonteTooltip, cHov, s->tempoJogoMs,
+                                  tx, ty - TILE_ALTURA / 2 - 4);
+        }
+        else
+        {
+            desenharTooltipModerno(renderer, s->fonteTooltip,
+                                   legendaCanteiro(cHov),
+                                   tx, ty - TILE_ALTURA / 2 - 4);
+        }
     }
 
     if (s->assets.casa)
@@ -568,9 +643,15 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
     }
     desenharDeposito(renderer, s->fonte, s->fontePequena, s->cropAssets, *s);
     desenharLoja(renderer, s->fonte, s->fontePequena, s->cropAssets, *s);
-    desenharHUD(renderer, s->fonte, s->xp, s->ouro, s->moedasVerdes);
+
+    desenharHudEsquerdo(renderer, s->fonte, s->fontePequena, s->fonteHud, s->hudAssets,
+                        s->xp, s->ouro, s->moedasVerdes, s->popularidade, s->generoJogador);
+    desenharHudDireito(renderer, s->fontePequena, s->hudAssets, s->hudDireitoHover);
+    desenharLogEventos(renderer, s->fontePequena, *s);
+
     desenharPainelSementes(renderer, s->fonte, s->fontePequena, s->cropAssets, s->toolbar);
-    desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, sementeIcone);
+    bool forcarCursor = s->lojaAberta || s->depositoAberto || s->modoCompraCanteiro;
+    desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, sementeIcone, forcarCursor);
 
     SDL_RenderPresent(renderer);
 }

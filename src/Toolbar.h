@@ -126,7 +126,7 @@ inline void desenharTooltipModerno(SDL_Renderer *renderer, TTF_Font *fonte, cons
     desenharContornoArredondado(renderer, x, y, w, h, raio);
 
     SDL_Color corTexto = {255, 240, 210, 255};
-    desenharTexto(renderer, fonte, texto, x + w / 2, y + h / 2, corTexto, true);
+    desenharTextoComContorno(renderer, fonte, texto, x + w / 2, y + h / 2, corTexto, true);
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 }
@@ -173,14 +173,21 @@ inline void atualizarAnimacoes(Toolbar &toolbar, float dt)
 inline void desenharToolbar(SDL_Renderer *renderer, const Toolbar &toolbar, SDL_Texture *sementeIcone = nullptr)
 {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 42, 31, 20, 200);
 
-    desenharRetanguloArredondado(renderer,
-                                 TOOLBAR_X - 8,
-                                 TOOLBAR_Y,
-                                 TOOLBAR_LARGURA + 16,
-                                 TOOLBAR_ALTURA,
-                                 12);
+    int barX = TOOLBAR_X - 8;
+    int barY = TOOLBAR_Y;
+    int barW = TOOLBAR_LARGURA + 16;
+    int barH = TOOLBAR_ALTURA;
+    int barRaio = 14;
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 80);
+    desenharRetanguloArredondado(renderer, barX + 2, barY + 3, barW, barH, barRaio);
+
+    SDL_SetRenderDrawColor(renderer, 42, 31, 20, 215);
+    desenharRetanguloArredondado(renderer, barX, barY, barW, barH, barRaio);
+
+    SDL_SetRenderDrawColor(renderer, 180, 140, 60, 220);
+    desenharContornoArredondado(renderer, barX, barY, barW, barH, barRaio);
 
     for (int i = 0; i < TOTAL_FERRAMENTAS; i++)
     {
@@ -264,13 +271,17 @@ inline int toolbarHitTest(int mouseX, int mouseY)
     return -1;
 }
 
-inline void desenharCursorFerramenta(SDL_Renderer *renderer, const Toolbar &toolbar, int mouseX, int mouseY, SDL_Texture *sementeIcone = nullptr)
+inline void desenharCursorFerramenta(SDL_Renderer *renderer, const Toolbar &toolbar, int mouseX, int mouseY, SDL_Texture *sementeIcone = nullptr, bool forcarCursor = false)
 {
     SDL_ShowCursor(SDL_DISABLE);
 
     SDL_Texture *icone = nullptr;
 
-    if (toolbar.painelAberto)
+    if (forcarCursor)
+    {
+        icone = toolbar.icones[CURSOR];
+    }
+    else if (toolbar.painelAberto)
     {
         icone = toolbar.icones[CURSOR];
     }

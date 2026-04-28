@@ -9,6 +9,7 @@
 #include "Assets.h"
 #include "Toolbar.h"
 #include "Crops.h"
+#include "HudAssets.h"
 
 struct GameState
 {
@@ -24,10 +25,13 @@ struct GameState
     int xp;
     int ouro;
     int moedasVerdes;
+    int popularidade;
+    int generoJogador;
     int canteirosComprados;
 
     int canteiroHover;
     int toolbarHover;
+    int hudDireitoHover;
     int mouseX;
     int mouseY;
 
@@ -39,15 +43,19 @@ struct GameState
     int inventarioColhidos[TOTAL_CROPS];
     int valorDeposito;
 
+    char logMensagens[5][96];
+    int logCount;
+
     Assets assets;
     CropAssets cropAssets;
+    HudAssets hudAssets;
 
     TTF_Font *fonte;
     TTF_Font *fontePequena;
     TTF_Font *fonteTooltip;
+    TTF_Font *fonteHud;
 
     bool solicitouSair;
-
 };
 
 #ifdef _WIN32

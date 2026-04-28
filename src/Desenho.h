@@ -150,3 +150,14 @@ inline void desenharTexto(SDL_Renderer *renderer, TTF_Font *fonte, const char *t
     SDL_RenderCopy(renderer, textura, nullptr, &destino);
     SDL_DestroyTexture(textura);
 }
+
+inline void desenharTextoComContorno(SDL_Renderer *renderer, TTF_Font *fonte, const char *texto, int x, int y, SDL_Color cor, bool centralizar = false)
+{
+    SDL_Color sombra = {0, 0, 0, 200};
+    desenharTexto(renderer, fonte, texto, x - 1, y,     sombra, centralizar);
+    desenharTexto(renderer, fonte, texto, x + 1, y,     sombra, centralizar);
+    desenharTexto(renderer, fonte, texto, x,     y - 1, sombra, centralizar);
+    desenharTexto(renderer, fonte, texto, x,     y + 1, sombra, centralizar);
+    desenharTexto(renderer, fonte, texto, x + 1, y + 1, sombra, centralizar);
+    desenharTexto(renderer, fonte, texto, x, y, cor, centralizar);
+}
