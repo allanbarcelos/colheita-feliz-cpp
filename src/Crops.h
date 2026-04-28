@@ -330,10 +330,10 @@ inline void desenharBarraProgresso(SDL_Renderer *renderer, int telaX, int telaY,
 
 inline void sortearEventoCanteiro(Canteiro &c, Uint32 tempoJogoMs)
 {
-    if (c.estado != PLANTADO)
-        return;
+    bool elegivelSeca = (c.estado == VAZIO) && !c.seca;
+    bool elegivelPraga = (c.estado == PLANTADO || c.estado == MADURO) && c.estagioCrop >= 4 && c.praga == 0;
 
-    if (c.seca || c.praga != 0)
+    if (!elegivelSeca && !elegivelPraga)
         return;
 
     if (tempoJogoMs - c.ultimoSorteioEventoMs < INTERVALO_SORTEIO_EVENTO_MS)
@@ -344,32 +344,19 @@ inline void sortearEventoCanteiro(Canteiro &c, Uint32 tempoJogoMs)
     if (rand() % 100 >= CHANCE_EVENTO_PCT)
         return;
 
-    int estagio = c.estagioCrop;
+    if (elegivelSeca)
+    {
+        c.seca = true;
+        return;
+    }
+
     int r = rand() % 100;
-
-    if (estagio <= 2)
-    {
-        if (r < 70)
-            c.seca = true;
-        else
-            c.praga = 2;
-    }
-    else if (estagio == 3)
-    {
-        if (r < 60)
-            c.praga = 2;
-        else
-            c.praga = 1;
-    }
+    if (r < 60)
+        c.praga = 1;
     else
-    {
-        if (r < 80)
-            c.praga = 1;
-        else
-            c.praga = 2;
-    }
-    c.saude -= PENALIDADE_EVENTO;
+        c.praga = 2;
 
+    c.saude -= PENALIDADE_EVENTO;
     if (c.saude < 0)
         c.saude = 0;
 }

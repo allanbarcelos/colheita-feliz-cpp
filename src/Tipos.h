@@ -93,9 +93,16 @@ inline const char *nomeFerramenta(Ferramenta f)
     return "";
 }
 
-inline const char *legendaEstadoCanteiro(EstadoCanteiro e)
+inline const char *legendaCanteiro(const Canteiro &c)
 {
-    switch (e)
+    if (c.estado == VAZIO && c.seca)
+        return "Terra Seca - Use o Regador";
+    if ((c.estado == PLANTADO || c.estado == MADURO) && c.praga == 1)
+        return "Erva Daninha - Use o Removedor";
+    if ((c.estado == PLANTADO || c.estado == MADURO) && c.praga == 2)
+        return "Minhoca - Use o Pesticida";
+
+    switch (c.estado)
     {
     case BLOQUEADO:
         return "Terra Bloqueada - Expandir Fazenda";
