@@ -183,10 +183,6 @@ int main(int argc, char *argv[])
         }
 
         gc.frame(&estado, renderer, dt);
-
-        Uint32 tempoFrame = SDL_GetTicks() - tempoAtual;
-        if (tempoFrame < TEMPO_FRAME_MS)
-            SDL_Delay(TEMPO_FRAME_MS - tempoFrame);
     }
 
     descarregarGameCode(&gc);
