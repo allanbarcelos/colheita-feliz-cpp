@@ -166,12 +166,13 @@ inline void desenharAnimais(SDL_Renderer *renderer, const Animal animais[3],
 inline int animalHitTest(const Animal animais[3], int mouseX, int mouseY)
 {
     int margem = ANIMAL_TAMANHO / 2;
+    int t = CLICK_TOLERANCIA;
     for (int i = 0; i < 3; i++)
     {
         int ax = static_cast<int>(animais[i].x);
         int ay = static_cast<int>(animais[i].y);
-        if (mouseX >= ax - margem && mouseX <= ax + margem &&
-            mouseY >= ay - ANIMAL_TAMANHO && mouseY <= ay)
+        if (mouseX >= ax - margem - t && mouseX <= ax + margem + t &&
+            mouseY >= ay - ANIMAL_TAMANHO - t && mouseY <= ay + t)
             return i;
     }
     return -1;

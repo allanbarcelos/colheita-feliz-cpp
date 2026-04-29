@@ -74,7 +74,7 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->toolbar.selecionada = CURSOR;
     s->toolbar.sementeSelecionada = -1;
     s->toolbar.painelAberto = false;
-    s->moedasVerdes = 0;
+    s->moedasVerdes = 100;
     s->popularidade = 0;
     s->generoJogador = 0;
 
@@ -128,6 +128,14 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->animalHover = -1;
     s->debugAtivo = false;
 
+    s->lojaTabAtiva = TAB_SEMENTES;
+    s->decoracaoAssets = carregarDecoracaoAssets(renderer);
+    for (int i = 0; i < TOTAL_DECORACOES; i++) s->inventarioDecoracoes[i] = 0;
+    s->totalDecoracoesColocadas = 0;
+    s->modoColocarItem = -1;
+    s->rotacaoColocando = 0;
+    s->decoracaoArrastando = -1;
+
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
         s->inventarioSementes[i] = 0;
@@ -157,6 +165,34 @@ static void processarEventos(GameState *s)
         {
             s->mouseX = evento.motion.x;
             s->mouseY = evento.motion.y;
+
+            if (s->decoracaoArrastando >= 0 && s->decoracaoArrastando < s->totalDecoracoesColocadas)
+            {
+                s->decoracoesColocadas[s->decoracaoArrastando].x = s->mouseX;
+                s->decoracoesColocadas[s->decoracaoArrastando].y = s->mouseY;
+            }
+        }
+
+        if (evento.type == SDL_MOUSEBUTTONUP && evento.button.button == SDL_BUTTON_LEFT)
+        {
+            s->decoracaoArrastando = -1;
+        }
+
+        if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_RIGHT)
+        {
+            int idx = decoracaoColocadaHitTest(s->decoracoesColocadas,
+                                               s->totalDecoracoesColocadas,
+                                               evento.button.x, evento.button.y);
+            if (idx >= 0)
+            {
+                int item = s->decoracoesColocadas[idx].idItem;
+                s->inventarioDecoracoes[item]++;
+                s->decoracoesColocadas[idx] = s->decoracoesColocadas[--s->totalDecoracoesColocadas];
+                char msg[96];
+                snprintf(msg, sizeof(msg), "Removeu %s (volta pro inventario)",
+                         TABELA_DECORACOES[item].nome);
+                adicionarLog(s, msg);
+            }
         }
 
         if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
@@ -166,6 +202,31 @@ static void processarEventos(GameState *s)
                 char dbg[64];
                 snprintf(dbg, sizeof(dbg), "Click @ (%d, %d)", evento.button.x, evento.button.y);
                 adicionarLog(s, dbg);
+            }
+
+            if (s->modoColocarItem >= 0 && s->totalDecoracoesColocadas < MAX_DECORACOES_COLOCADAS)
+            {
+                int idx = s->totalDecoracoesColocadas++;
+                s->decoracoesColocadas[idx].idItem = s->modoColocarItem;
+                s->decoracoesColocadas[idx].x = evento.button.x;
+                s->decoracoesColocadas[idx].y = evento.button.y;
+                s->decoracoesColocadas[idx].rotacao = s->rotacaoColocando;
+                s->inventarioDecoracoes[s->modoColocarItem]--;
+                if (s->inventarioDecoracoes[s->modoColocarItem] <= 0)
+                    s->modoColocarItem = primeiroItemNoInventario(s->inventarioDecoracoes);
+                continue;
+            }
+
+            if (s->modoColocarItem < 0)
+            {
+                int idxDeco = decoracaoColocadaHitTest(s->decoracoesColocadas,
+                                                       s->totalDecoracoesColocadas,
+                                                       evento.button.x, evento.button.y);
+                if (idxDeco >= 0)
+                {
+                    s->decoracaoArrastando = idxDeco;
+                    continue;
+                }
             }
 
             if (caixaRecompensaClicada(evento.button.x, evento.button.y, s->recompensaDisponivel))
@@ -244,13 +305,70 @@ static void processarEventos(GameState *s)
 
             if (s->lojaAberta)
             {
-                int resLoja = lojaHitTest(evento.button.x, evento.button.y);
-                if (resLoja == -2)
+                int hit = lojaHitTest(evento.button.x, evento.button.y, *s);
+                if (hit == -2)
                 {
-
                     s->lojaAberta = false;
                 }
-                else if (resLoja == 999)
+                else if (hit >= 100 && hit < 100 + TOTAL_TABS_LOJA)
+                {
+                    int tab = hit - 100;
+                    bool habilitada = (tab == TAB_SEMENTES) || (tab == TAB_RACOES) || (tab == TAB_DECORACAO);
+                    if (habilitada)
+                        s->lojaTabAtiva = tab;
+                    else
+                        adicionarLog(s, "Em breve");
+                }
+                else if (hit >= 200 && hit < 300)
+                {
+                    int slot = hit - 200;
+                    if (!atingiuNivel(s->xp, TABELA_CROPS[slot].nivelDesbloqueio))
+                    {
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
+                                 TABELA_CROPS[slot].nome, TABELA_CROPS[slot].nivelDesbloqueio);
+                        adicionarLog(s, msg);
+                    }
+                    else
+                    {
+                        int preco = TABELA_CROPS[slot].precoCompra;
+                        if (s->ouro >= preco)
+                        {
+                            s->ouro -= preco;
+                            s->inventarioSementes[slot]++;
+                            char msg[96];
+                            snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
+                                     TABELA_CROPS[slot].nome, preco);
+                            adicionarLog(s, msg);
+                        }
+                    }
+                }
+                else if (hit >= 300 && hit < 300 + TOTAL_DECORACOES)
+                {
+                    int slot = hit - 300;
+                    const ItemDecoracao &d = TABELA_DECORACOES[slot];
+                    int nivelAtual = nivelDoJogador(s->xp);
+                    if (nivelAtual < d.requerLv)
+                    {
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d", d.nome, d.requerLv);
+                        adicionarLog(s, msg);
+                    }
+                    else if (s->ouro < d.precoOuro || s->moedasVerdes < d.precoVerdes)
+                    {
+                        adicionarLog(s, "Sem ouro ou moedas verdes suficientes");
+                    }
+                    else
+                    {
+                        s->ouro -= d.precoOuro;
+                        s->moedasVerdes -= d.precoVerdes;
+                        s->inventarioDecoracoes[slot]++;
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "Comprou %s (no inventario)", d.nome);
+                        adicionarLog(s, msg);
+                    }
+                }
+                else if (hit == 999)
                 {
                     if (s->ouro >= PRECO_RACAO)
                     {
@@ -261,31 +379,8 @@ static void processarEventos(GameState *s)
                         adicionarLog(s, msg);
                     }
                 }
-                else if (resLoja >= 0)
+                else if (hit == -1)
                 {
-                    if (!atingiuNivel(s->xp, TABELA_CROPS[resLoja].nivelDesbloqueio))
-                    {
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
-                                 TABELA_CROPS[resLoja].nome, TABELA_CROPS[resLoja].nivelDesbloqueio);
-                        adicionarLog(s, msg);
-                        continue;
-                    }
-
-                    int preco = TABELA_CROPS[resLoja].precoCompra;
-                    if (s->ouro >= preco)
-                    {
-                        s->ouro -= preco;
-                        s->inventarioSementes[resLoja]++;
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
-                                 TABELA_CROPS[resLoja].nome, preco);
-                        adicionarLog(s, msg);
-                    }
-                }
-                else if (resLoja == -1)
-                {
-
                     s->lojaAberta = false;
                 }
 
@@ -529,6 +624,73 @@ static void processarEventos(GameState *s)
                         }
                         break;
                     case CURSOR:
+                        if (c.estado == MADURO)
+                        {
+                            s->colheitas++;
+                            int ganho = TABELA_CROPS[c.tipoCrop].precoVenda * c.saude / 100;
+                            s->valorDeposito += ganho;
+                            s->inventarioColhidos[c.tipoCrop]++;
+                            {
+                                char msg[96];
+                                snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)",
+                                         TABELA_CROPS[c.tipoCrop].nome, ganho);
+                                adicionarLog(s, msg);
+                                incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
+                            }
+                            c.temporadaAtual++;
+                            int totalTemp = TABELA_CROPS[c.tipoCrop].temporadas;
+                            if (c.temporadaAtual <= totalTemp)
+                            {
+                                c.estado = PLANTADO;
+                                c.estagioCrop = 1;
+                                c.timestampPlantio = s->tempoJogoMs;
+                                c.saude = 100;
+                                c.seca = false;
+                                c.praga = 0;
+                                c.ultimoSorteioEventoMs = s->tempoJogoMs;
+                            }
+                            else
+                            {
+                                c.estado = RESTOS;
+                                c.tipoCrop = -1;
+                                c.estagioCrop = 0;
+                                c.timestampPlantio = 0;
+                                c.temporadaAtual = 0;
+                                c.saude = 100;
+                                c.seca = false;
+                                c.praga = 0;
+                            }
+                        }
+                        else if (c.estado == RESTOS)
+                        {
+                            c.estado = VAZIO;
+                            c.tipoCrop = -1;
+                            c.estagioCrop = 0;
+                        }
+                        else if (c.seca)
+                        {
+                            c.seca = false;
+                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
+                            s->xp += 2;
+                            adicionarLog(s, "Regou canteiro (+2 XP)");
+                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
+                        }
+                        else if (c.praga == 1)
+                        {
+                            c.praga = 0;
+                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
+                            s->xp += 2;
+                            adicionarLog(s, "Removeu erva daninha (+2 XP)");
+                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                        }
+                        else if (c.praga == 2)
+                        {
+                            c.praga = 0;
+                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
+                            s->xp += 2;
+                            adicionarLog(s, "Aplicou pesticida (+2 XP)");
+                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                        }
                         break;
                     }
                 }
@@ -539,10 +701,43 @@ static void processarEventos(GameState *s)
         {
             if (evento.key.keysym.sym == SDLK_ESCAPE)
             {
-                if (s->toolbar.painelAberto)
+                if (s->modoColocarItem >= 0)
+                    s->modoColocarItem = -1;
+                else if (s->toolbar.painelAberto)
                     s->toolbar.painelAberto = false;
                 else
                     s->solicitouSair = true;
+            }
+            if (evento.key.keysym.sym == SDLK_p)
+            {
+                if (s->modoColocarItem >= 0)
+                {
+                    s->modoColocarItem = -1;
+                    adicionarLog(s, "Modo colocar OFF");
+                }
+                else
+                {
+                    int item = primeiroItemNoInventario(s->inventarioDecoracoes);
+                    if (item >= 0)
+                    {
+                        s->modoColocarItem = item;
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "Modo colocar ON (TAB cicla, click coloca, ESC sai)");
+                        adicionarLog(s, msg);
+                    }
+                    else
+                    {
+                        adicionarLog(s, "Sem decoracoes — compra na Loja");
+                    }
+                }
+            }
+            if (evento.key.keysym.sym == SDLK_TAB && s->modoColocarItem >= 0)
+            {
+                s->modoColocarItem = proximoItemInventario(s->inventarioDecoracoes, s->modoColocarItem);
+            }
+            if (evento.key.keysym.sym == SDLK_r && s->modoColocarItem >= 0)
+            {
+                s->rotacaoColocando = s->rotacaoColocando ? 0 : 1;
             }
             if (evento.key.keysym.sym == SDLK_t)
             {
@@ -793,6 +988,10 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
         sementeIcone = s->cropAssets.sementes[s->toolbar.sementeSelecionada];
     }
 
+    desenharDecoracoesColocadas(renderer, s->decoracaoAssets,
+                                 s->decoracoesColocadas, s->totalDecoracoesColocadas,
+                                 s->tempoJogoMs);
+
     desenharCachorro(renderer, s->cachorro, s->animalAssets, s->tempoJogoMs);
     desenharAnimais(renderer, s->animais, s->animalAssets, s->tempoJogoMs);
 
@@ -806,9 +1005,6 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
                                nomeFerramenta(static_cast<Ferramenta>(s->toolbarHover)),
                                sx + SLOT_TAMANHO / 2, sy);
     }
-    desenharDeposito(renderer, s->fonte, s->fontePequena, s->cropAssets, *s);
-    desenharLoja(renderer, s->fonte, s->fontePequena, s->cropAssets, *s);
-
     desenharHudEsquerdo(renderer, s->fonte, s->fontePequena, s->fonteHud, s->hudAssets,
                         s->xp, s->ouro, s->moedasVerdes, s->popularidade, s->generoJogador);
     desenharHudDireito(renderer, s->fontePequena, s->hudAssets, s->hudDireitoHover);
@@ -816,10 +1012,49 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
     desenharLogEventos(renderer, s->fontePequena, *s);
 
     desenharPainelSementes(renderer, s->fonte, s->fontePequena, s->cropAssets, s->toolbar, s->xp);
+    desenharDeposito(renderer, s->fonte, s->fontePequena, s->cropAssets, s->hudAssets, *s);
+    desenharLoja(renderer, s->fonte, s->fontePequena, s->cropAssets, s->hudAssets, *s);
     desenharPainelMissoes(renderer, s->fonte, s->fontePequena, s->hudAssets,
                            s->missoesDiarias, s->painelMissoesAbertura);
     bool forcarCursor = s->lojaAberta || s->depositoAberto || s->modoCompraCanteiro || s->painelMissoesAberto;
-    desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, sementeIcone, forcarCursor);
+    int tipoCursor = CURSOR_NORMAL;
+    bool sobreInterativo = (s->hudDireitoHover >= 0) || (s->toolbarHover >= 0) ||
+                           caixaRecompensaClicada(s->mouseX, s->mouseY, s->recompensaDisponivel) ||
+                           (s->lojaAberta && lojaHitTest(s->mouseX, s->mouseY, *s) != -1) ||
+                           (s->depositoAberto && depositoHitTest(s->mouseX, s->mouseY) != -1) ||
+                           (s->painelMissoesAberto && painelMissoesHitTest(s->mouseX, s->mouseY, s->missoesDiarias) != -1);
+    bool sobreColher = false;
+    SDL_Texture *iconeContextual = nullptr;
+    if (s->canteiroHover >= 0 && s->toolbar.selecionada == CURSOR)
+    {
+        const Canteiro &c = s->canteiros[s->canteiroHover];
+        if (c.estado == MADURO)        { sobreColher = true; iconeContextual = s->toolbar.icones[MAO]; }
+        else if (c.estado == RESTOS)   { sobreColher = true; iconeContextual = s->toolbar.icones[ENXADA]; }
+        else if (c.seca)               { sobreColher = true; iconeContextual = s->toolbar.icones[REGADOR]; }
+        else if (c.praga == 1)         { sobreColher = true; iconeContextual = s->toolbar.icones[REMOVEDOR]; }
+        else if (c.praga == 2)         { sobreColher = true; iconeContextual = s->toolbar.icones[PESTICIDA]; }
+    }
+    if (animalHitTest(s->animais, s->mouseX, s->mouseY) >= 0) sobreColher = true;
+    if (decoracaoColocadaHitTest(s->decoracoesColocadas, s->totalDecoracoesColocadas, s->mouseX, s->mouseY) >= 0)
+        sobreColher = true;
+
+    if (iconeContextual)
+    {
+        SDL_Rect destino = {s->mouseX - ICONE_TAMANHO / 2, s->mouseY - ICONE_TAMANHO / 2,
+                            ICONE_TAMANHO, ICONE_TAMANHO};
+        SDL_RenderCopy(renderer, iconeContextual, nullptr, &destino);
+        SDL_ShowCursor(SDL_DISABLE);
+    }
+    else
+    {
+        if (sobreColher) tipoCursor = CURSOR_PEGANDO;
+        else if (sobreInterativo) tipoCursor = CURSOR_APONTANDO;
+        desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, sementeIcone, forcarCursor, tipoCursor);
+    }
+
+    if (s->modoColocarItem >= 0)
+        desenharFantasmaDecoracao(renderer, s->decoracaoAssets, s->modoColocarItem,
+                                   s->mouseX, s->mouseY, s->tempoJogoMs, s->rotacaoColocando);
 
     if (s->debugAtivo)
     {

@@ -83,3 +83,11 @@ static constexpr int PRECO_RACAO = 30;
 static constexpr int ANIMAL_FRAME_TEMPO_MS = 165;
 static constexpr float ANIMAL_VELOCIDADE_PX_S = 18.0f;
 
+static constexpr int CLICK_TOLERANCIA = 6;
+
+static constexpr int LOJA_LARGURA = 1100;
+static constexpr int LOJA_ALTURA = 720;
+static constexpr int LOJA_X = (LARGURA_JANELA - LOJA_LARGURA) / 2;
+static constexpr int LOJA_Y = (ALTURA_JANELA - LOJA_ALTURA) / 2;
+static constexpr int TOTAL_TABS_LOJA = 7;
+

@@ -232,13 +232,14 @@ inline int hudDireitoHitTest(int mouseX, int mouseY)
 {
     int cardY = HUD_DIREITO_Y;
     int cardH = hudDireitoCardH();
-    if (mouseY < cardY || mouseY > cardY + cardH) return -1;
+    int t = CLICK_TOLERANCIA;
+    if (mouseY < cardY - t || mouseY > cardY + cardH + t) return -1;
 
     int cardW = hudDireitoCardW();
     for (int i = 0; i < HUD_DIREITO_TOTAL; i++)
     {
         int cardX = botaoHudCardX(i);
-        if (mouseX >= cardX && mouseX <= cardX + cardW)
+        if (mouseX >= cardX - t && mouseX <= cardX + cardW + t)
             return i;
     }
     return -1;
@@ -329,30 +330,45 @@ inline void desenharLogEventos(SDL_Renderer *renderer, TTF_Font *fontePequena, c
 {
     if (s.logCount == 0) return;
 
-    const int largura = 320;
-    const int alturaLinha = 18;
-    const int padding = 8;
-    const int alturaTotal = padding * 2 + s.logCount * alturaLinha;
+    const int largura = 440;
+    const int alturaLinha = 24;
+    const int paddingX = 16;
+    const int paddingY = 14;
+    const int alturaTitulo = 22;
+    const int alturaTotal = paddingY * 2 + alturaTitulo + s.logCount * alturaLinha;
 
-    const int x = 12;
-    const int y = ALTURA_JANELA - TOOLBAR_ALTURA - alturaTotal - 12;
+    const int x = 16;
+    const int y = ALTURA_JANELA - TOOLBAR_ALTURA - alturaTotal - 16;
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    SDL_SetRenderDrawColor(renderer, 30, 22, 15, 180);
-    SDL_Rect fundo = {x, y, largura, alturaTotal};
-    SDL_RenderFillRect(renderer, &fundo);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 80);
+    desenharRetanguloArredondado(renderer, x + 2, y + 3, largura, alturaTotal, 12);
 
-    SDL_SetRenderDrawColor(renderer, 180, 140, 60, 200);
-    SDL_RenderDrawRect(renderer, &fundo);
+    SDL_SetRenderDrawColor(renderer, 180, 140, 60, 230);
+    desenharRetanguloArredondado(renderer, x - 2, y - 2, largura + 4, alturaTotal + 4, 12);
+
+    SDL_SetRenderDrawColor(renderer, 30, 22, 15, 230);
+    desenharRetanguloArredondado(renderer, x, y, largura, alturaTotal, 12);
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 
+    SDL_Color corTitulo = {255, 215, 100, 255};
+    desenharTexto(renderer, fontePequena, "Assistente da Fazenda",
+                  x + paddingX, y + paddingY - 2, corTitulo, false);
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 180, 140, 60, 110);
+    int linhaY = y + paddingY + alturaTitulo - 2;
+    SDL_RenderDrawLine(renderer, x + paddingX, linhaY, x + largura - paddingX, linhaY);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+
+    int textoBaseY = y + paddingY + alturaTitulo + 4;
     for (int i = 0; i < s.logCount; i++)
     {
-        Uint8 alpha = static_cast<Uint8>(255 - i * 35);
+        Uint8 alpha = static_cast<Uint8>(255 - i * 32);
         SDL_Color cor = {255, 235, 180, alpha};
         desenharTexto(renderer, fontePequena, s.logMensagens[i],
-                      x + padding, y + padding + i * alturaLinha, cor, false);
+                      x + paddingX, textoBaseY + i * alturaLinha, cor, false);
     }
 }

@@ -50,10 +50,11 @@ inline void desenharCaixaRecompensa(SDL_Renderer *renderer, const HudAssets &h,
 inline bool caixaRecompensaClicada(int mouseX, int mouseY, bool disponivel)
 {
     if (!disponivel) return false;
-    return mouseX >= CAIXA_RECOMPENSA_X &&
-           mouseX <= CAIXA_RECOMPENSA_X + CAIXA_RECOMPENSA_TAM &&
-           mouseY >= CAIXA_RECOMPENSA_Y &&
-           mouseY <= CAIXA_RECOMPENSA_Y + CAIXA_RECOMPENSA_TAM;
+    int t = CLICK_TOLERANCIA;
+    return mouseX >= CAIXA_RECOMPENSA_X - t &&
+           mouseX <= CAIXA_RECOMPENSA_X + CAIXA_RECOMPENSA_TAM + t &&
+           mouseY >= CAIXA_RECOMPENSA_Y - t &&
+           mouseY <= CAIXA_RECOMPENSA_Y + CAIXA_RECOMPENSA_TAM + t;
 }
 
 inline void sortearRecompensaDiaria(int *ouro, int *moedasVerdes, int *inventarioSementes,

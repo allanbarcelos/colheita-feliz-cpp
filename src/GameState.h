@@ -13,6 +13,7 @@
 #include "Missoes.h"
 #include "Animal.h"
 #include "AnimalAssets.h"
+#include "Decoracao.h"
 
 struct GameState
 {
@@ -65,6 +66,15 @@ struct GameState
     int inventarioProdutos[3];
     AnimalAssets animalAssets;
     int animalHover;
+
+    int lojaTabAtiva;
+    DecoracaoAssets decoracaoAssets;
+    int inventarioDecoracoes[TOTAL_DECORACOES];
+    DecoracaoColocada decoracoesColocadas[MAX_DECORACOES_COLOCADAS];
+    int totalDecoracoesColocadas;
+    int modoColocarItem;
+    int rotacaoColocando;
+    int decoracaoArrastando;
 
     Assets assets;
     CropAssets cropAssets;

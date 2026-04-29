@@ -63,6 +63,9 @@ struct Toolbar
     Ferramenta selecionada = CURSOR;
     SDL_Texture *icones[7] = {};
 
+    SDL_Texture *cursorApontando = nullptr;
+    SDL_Texture *cursorPegando = nullptr;
+
     int sementeSelecionada = -1;
     bool painelAberto = false;
 

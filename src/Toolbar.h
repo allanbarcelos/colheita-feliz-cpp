@@ -25,6 +25,9 @@ inline void carregarIconesToolbar(SDL_Renderer *renderer, Toolbar &toolbar)
     {
         toolbar.icones[i] = carregarTextura(renderer, arquivos[i]);
     }
+
+    toolbar.cursorApontando = carregarTextura(renderer, "assets/sprites/icons/toolbar/cursor_apontando.png");
+    toolbar.cursorPegando = carregarTextura(renderer, "assets/sprites/icons/toolbar/cursor_pegando.png");
 }
 
 inline int slotX(int indice)
@@ -252,8 +255,9 @@ inline void desenharToolbar(SDL_Renderer *renderer, const Toolbar &toolbar, SDL_
 inline int toolbarHitTest(int mouseX, int mouseY)
 {
     int sy = slotY();
+    int t = CLICK_TOLERANCIA;
 
-    if (mouseY < sy || mouseY > sy + SLOT_TAMANHO)
+    if (mouseY < sy - t || mouseY > sy + SLOT_TAMANHO + t)
     {
         return -1;
     }
@@ -262,7 +266,7 @@ inline int toolbarHitTest(int mouseX, int mouseY)
     {
         int sx = slotX(i);
 
-        if (mouseX >= sx && mouseX <= sx + SLOT_TAMANHO)
+        if (mouseX >= sx - t && mouseX <= sx + SLOT_TAMANHO + t)
         {
             return i;
         }
@@ -271,21 +275,28 @@ inline int toolbarHitTest(int mouseX, int mouseY)
     return -1;
 }
 
-inline void desenharCursorFerramenta(SDL_Renderer *renderer, const Toolbar &toolbar, int mouseX, int mouseY, SDL_Texture *sementeIcone = nullptr, bool forcarCursor = false)
+enum TipoCursor
+{
+    CURSOR_NORMAL = 0,
+    CURSOR_APONTANDO = 1,
+    CURSOR_PEGANDO = 2
+};
+
+inline void desenharCursorFerramenta(SDL_Renderer *renderer, const Toolbar &toolbar, int mouseX, int mouseY, SDL_Texture *sementeIcone = nullptr, bool forcarCursor = false, int tipoCursor = CURSOR_NORMAL)
 {
     SDL_ShowCursor(SDL_DISABLE);
 
     SDL_Texture *icone = nullptr;
 
-    if (forcarCursor)
+    if (tipoCursor == CURSOR_PEGANDO && toolbar.cursorPegando)
     {
-        icone = toolbar.icones[CURSOR];
+        icone = toolbar.cursorPegando;
     }
-    else if (toolbar.painelAberto)
+    else if (tipoCursor == CURSOR_APONTANDO && toolbar.cursorApontando)
     {
-        icone = toolbar.icones[CURSOR];
+        icone = toolbar.cursorApontando;
     }
-    else if (toolbar.selecionada == CURSOR)
+    else if (forcarCursor || toolbar.painelAberto || toolbar.selecionada == CURSOR)
     {
         icone = toolbar.icones[CURSOR];
     }
@@ -313,6 +324,8 @@ inline void desenharCursorFerramenta(SDL_Renderer *renderer, const Toolbar &tool
 
 inline void liberarIconesToolbar(Toolbar &toolbar)
 {
+    if (toolbar.cursorApontando) { SDL_DestroyTexture(toolbar.cursorApontando); toolbar.cursorApontando = nullptr; }
+    if (toolbar.cursorPegando)   { SDL_DestroyTexture(toolbar.cursorPegando);   toolbar.cursorPegando = nullptr; }
     for (int i = 0; i < 7; i++)
     {
         if(toolbar.icones[i] != nullptr){

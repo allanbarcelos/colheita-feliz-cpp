@@ -170,7 +170,7 @@ inline void desenharPainelMissoes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_F
     SDL_RenderFillRect(renderer, &barra);
 
     SDL_Color corTitulo = {255, 235, 180, alfaC};
-    desenharTexto(renderer, fonte, "Missoes Diarias",
+    desenharTexto(renderer, fonte, "Missões Diárias",
                   PAINEL_MISSOES_X + PAINEL_MISSOES_LARGURA / 2,
                   PAINEL_MISSOES_Y + PAINEL_TITULO_ALTURA / 2, corTitulo, true);
 
@@ -190,10 +190,11 @@ inline void desenharPainelMissoes(SDL_Renderer *renderer, TTF_Font *fonte, TTF_F
 
 inline int painelMissoesHitTest(int mouseX, int mouseY, const Missao missoes[3])
 {
+    int t = CLICK_TOLERANCIA;
     int fecharX = PAINEL_MISSOES_X + PAINEL_MISSOES_LARGURA - 32;
     int fecharY = PAINEL_MISSOES_Y + 8;
-    if (mouseX >= fecharX && mouseX <= fecharX + 24 &&
-        mouseY >= fecharY && mouseY <= fecharY + 24) return -2;
+    if (mouseX >= fecharX - t && mouseX <= fecharX + 24 + t &&
+        mouseY >= fecharY - t && mouseY <= fecharY + 24 + t) return -2;
 
     int cardsBaseY = PAINEL_MISSOES_Y + PAINEL_TITULO_ALTURA + 18;
     int cardW = PAINEL_MISSOES_LARGURA - CARD_MISSAO_PADDING_X * 2;
@@ -204,8 +205,8 @@ inline int painelMissoesHitTest(int mouseX, int mouseY, const Missao missoes[3])
         int cardY = cardsBaseY + i * CARD_MISSAO_ALTURA;
         int btnX = cardX + cardW - padX - BTN_COLETAR_LARGURA;
         int btnY = cardY + 86;
-        if (mouseX >= btnX && mouseX <= btnX + BTN_COLETAR_LARGURA &&
-            mouseY >= btnY && mouseY <= btnY + BTN_COLETAR_ALTURA &&
+        if (mouseX >= btnX - t && mouseX <= btnX + BTN_COLETAR_LARGURA + t &&
+            mouseY >= btnY - t && mouseY <= btnY + BTN_COLETAR_ALTURA + t &&
             missoes[i].concluida && !missoes[i].coletada)
             return i;
     }
