@@ -14,6 +14,7 @@
 #include "Animal.h"
 #include "AnimalAssets.h"
 #include "Decoracao.h"
+#include "Sons.h"
 
 struct GameState
 {
@@ -75,6 +76,11 @@ struct GameState
     int modoColocarItem;
     int rotacaoColocando;
     int decoracaoArrastando;
+
+    Sons sons;
+    bool painelSettingsAberto;
+    float painelSettingsAbertura;
+    int nivelAnteriorParaSom;
 
     Assets assets;
     CropAssets cropAssets;

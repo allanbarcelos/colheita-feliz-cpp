@@ -178,6 +178,16 @@ inline int animalHitTest(const Animal animais[3], int mouseX, int mouseY)
     return -1;
 }
 
+inline bool cachorroHitTest(const Cachorro &c, int mouseX, int mouseY)
+{
+    int margem = ANIMAL_TAMANHO / 2;
+    int t = CLICK_TOLERANCIA;
+    int cx = static_cast<int>(c.x);
+    int cy = static_cast<int>(c.y);
+    return (mouseX >= cx - margem - t && mouseX <= cx + margem + t &&
+            mouseY >= cy - ANIMAL_TAMANHO - t && mouseY <= cy + t);
+}
+
 inline void escolherNovoTargetCachorro(Cachorro &c, Uint32 tempoJogoMs)
 {
     int margem = ANIMAL_TAMANHO / 2;

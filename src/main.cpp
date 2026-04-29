@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_mixer.h>
 
 #include <cstdio>
 #include <cstring>
@@ -116,9 +117,12 @@ int main(int argc, char *argv[])
 
     SDL_SetHint("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2");
     SDL_SetHint("SDL_WINDOWS_DPI_SCALING", "0");
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     IMG_Init(IMG_INIT_PNG);
     TTF_Init();
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+        printf("[audio] Mix_OpenAudio falhou: %s\n", Mix_GetError());
+    Mix_AllocateChannels(16);
 
     resolverCaminhosDll();
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
@@ -193,6 +197,7 @@ int main(int argc, char *argv[])
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);
+    Mix_CloseAudio();
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();

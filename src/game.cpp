@@ -11,6 +11,7 @@
 #include "PainelMissoes.h"
 #include "RecompensaDiaria.h"
 #include "AnimalLogica.h"
+#include "PainelSettings.h"
 
 #include <cmath>
 
@@ -136,6 +137,12 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->rotacaoColocando = 0;
     s->decoracaoArrastando = -1;
 
+    carregarSons(s->sons);
+    iniciarMusicaFazenda(s->sons);
+    s->painelSettingsAberto = false;
+    s->painelSettingsAbertura = 0.0f;
+    s->nivelAnteriorParaSom = nivelDoJogador(s->xp);
+
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
         s->inventarioSementes[i] = 0;
@@ -235,6 +242,7 @@ static void processarEventos(GameState *s)
                 sortearRecompensaDiaria(&s->ouro, &s->moedasVerdes,
                                          s->inventarioSementes, msg, sizeof(msg));
                 adicionarLog(s, msg);
+                tocarSfx(s->sons, s->sons.abrirCaixa);
                 s->recompensaDisponivel = false;
                 s->ultimoDiaRecompensa = static_cast<int>(s->tempoJogoMs / RESET_DIARIO_MS);
                 continue;
@@ -260,12 +268,25 @@ static void processarEventos(GameState *s)
                         snprintf(msg, sizeof(msg), "Missao coletada (+%d ouro, +%d verdes, +%d XP)",
                                  m.recompensaOuro, m.recompensaVerdes, m.recompensaXp);
                         adicionarLog(s, msg);
+                        tocarSfx(s->sons, s->sons.missaoCompleta);
                     }
                 }
                 else if (hit == -1)
                 {
                     s->painelMissoesAberto = false;
                 }
+                continue;
+            }
+
+            if (s->painelSettingsAberto)
+            {
+                int valor = 0;
+                int hit = painelSettingsHitTest(evento.button.x, evento.button.y, valor);
+                if (hit == -2) s->painelSettingsAberto = false;
+                else if (hit == 1) { s->sons.volumeMusica = valor; atualizarVolumeMusica(s->sons); }
+                else if (hit == 2) { s->sons.volumeSfx = valor; }
+                else if (hit == 3) { s->sons.mudo = !s->sons.mudo; atualizarVolumeMusica(s->sons); }
+                else if (hit == -1) s->painelSettingsAberto = false;
                 continue;
             }
 
@@ -299,7 +320,11 @@ static void processarEventos(GameState *s)
                     s->lojaAberta = false;
                     s->depositoAberto = false;
                     break;
+                case 5:
+                    s->painelSettingsAberto = !s->painelSettingsAberto;
+                    break;
                 }
+                tocarSfx(s->sons, s->sons.clickBotao);
                 continue;
             }
 
@@ -340,6 +365,7 @@ static void processarEventos(GameState *s)
                             snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
                                      TABELA_CROPS[slot].nome, preco);
                             adicionarLog(s, msg);
+                            tocarSfx(s->sons, s->sons.comprar);
                         }
                     }
                 }
@@ -366,6 +392,7 @@ static void processarEventos(GameState *s)
                         char msg[96];
                         snprintf(msg, sizeof(msg), "Comprou %s (no inventario)", d.nome);
                         adicionarLog(s, msg);
+                        tocarSfx(s->sons, s->sons.comprar);
                     }
                 }
                 else if (hit == 999)
@@ -377,6 +404,7 @@ static void processarEventos(GameState *s)
                         char msg[96];
                         snprintf(msg, sizeof(msg), "Comprou 1 Racao (-%d ouro)", PRECO_RACAO);
                         adicionarLog(s, msg);
+                        tocarSfx(s->sons, s->sons.comprar);
                     }
                 }
                 else if (hit == -1)
@@ -401,6 +429,7 @@ static void processarEventos(GameState *s)
                                               char msg[96];
                         snprintf(msg, sizeof(msg), "Vendeu deposito (+%d ouro)", s->valorDeposito);
                         adicionarLog(s, msg);
+                        tocarSfx(s->sons, s->sons.vender);
 
                         s->ouro += s->valorDeposito;
                         s->valorDeposito = 0;
@@ -420,6 +449,13 @@ static void processarEventos(GameState *s)
             if (animalClicado >= 0)
             {
                 Animal &a = s->animais[animalClicado];
+
+                switch (a.tipo)
+                {
+                case GALINHA: tocarSfx(s->sons, s->sons.galinhaCluck); break;
+                case VACA:    tocarSfx(s->sons, s->sons.vacaMoo);     break;
+                case OVELHA:  tocarSfx(s->sons, s->sons.ovelhaBaa);   break;
+                }
 
                 if (a.produtoPronto)
                 {
@@ -451,6 +487,12 @@ static void processarEventos(GameState *s)
                     adicionarLog(s, "Sem racao! Compra na Loja");
                     continue;
                 }
+            }
+
+            if (cachorroHitTest(s->cachorro, evento.button.x, evento.button.y))
+            {
+                tocarSfx(s->sons, s->sons.cachorroBark);
+                continue;
             }
 
             if (s->toolbar.painelAberto)
@@ -545,6 +587,7 @@ static void processarEventos(GameState *s)
                                 snprintf(msg, sizeof(msg), "Plantou %s", TABELA_CROPS[sem].nome);
                                 adicionarLog(s, msg);
                                 incrementarProgressoMissao(s->missoesDiarias, MISSAO_PLANTAR);
+                                tocarSfx(s->sons, s->sons.plantar);
                             }
                         }
                         break;
@@ -564,6 +607,7 @@ static void processarEventos(GameState *s)
                                          TABELA_CROPS[c.tipoCrop].nome, ganho);
                                 adicionarLog(s, msg);
                                 incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
+                                tocarSfx(s->sons, s->sons.colher);
                             }
 
                             c.temporadaAtual++;
@@ -601,6 +645,7 @@ static void processarEventos(GameState *s)
                             s->xp += 2;
                             adicionarLog(s, "Regou canteiro (+2 XP)");
                             incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
+                            tocarSfx(s->sons, s->sons.regar);
                         }
                         break;
                     case REMOVEDOR:
@@ -611,6 +656,7 @@ static void processarEventos(GameState *s)
                             s->xp += 2;
                             adicionarLog(s, "Removeu erva daninha (+2 XP)");
                             incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                            tocarSfx(s->sons, s->sons.removerPraga);
                         }
                         break;
                     case PESTICIDA:
@@ -621,6 +667,7 @@ static void processarEventos(GameState *s)
                             s->xp += 2;
                             adicionarLog(s, "Aplicou pesticida (+2 XP)");
                             incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                            tocarSfx(s->sons, s->sons.pesticida);
                         }
                         break;
                     case CURSOR:
@@ -636,6 +683,7 @@ static void processarEventos(GameState *s)
                                          TABELA_CROPS[c.tipoCrop].nome, ganho);
                                 adicionarLog(s, msg);
                                 incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
+                                tocarSfx(s->sons, s->sons.colher);
                             }
                             c.temporadaAtual++;
                             int totalTemp = TABELA_CROPS[c.tipoCrop].temporadas;
@@ -674,6 +722,7 @@ static void processarEventos(GameState *s)
                             s->xp += 2;
                             adicionarLog(s, "Regou canteiro (+2 XP)");
                             incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
+                            tocarSfx(s->sons, s->sons.regar);
                         }
                         else if (c.praga == 1)
                         {
@@ -682,6 +731,7 @@ static void processarEventos(GameState *s)
                             s->xp += 2;
                             adicionarLog(s, "Removeu erva daninha (+2 XP)");
                             incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                            tocarSfx(s->sons, s->sons.removerPraga);
                         }
                         else if (c.praga == 2)
                         {
@@ -690,6 +740,7 @@ static void processarEventos(GameState *s)
                             s->xp += 2;
                             adicionarLog(s, "Aplicou pesticida (+2 XP)");
                             incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+                            tocarSfx(s->sons, s->sons.pesticida);
                         }
                         break;
                     }
@@ -1016,6 +1067,7 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
     desenharLoja(renderer, s->fonte, s->fontePequena, s->cropAssets, s->hudAssets, *s);
     desenharPainelMissoes(renderer, s->fonte, s->fontePequena, s->hudAssets,
                            s->missoesDiarias, s->painelMissoesAbertura);
+    desenharPainelSettings(renderer, s->fonte, s->fontePequena, s->sons, s->painelSettingsAbertura);
     bool forcarCursor = s->lojaAberta || s->depositoAberto || s->modoCompraCanteiro || s->painelMissoesAberto;
     int tipoCursor = CURSOR_NORMAL;
     bool sobreInterativo = (s->hudDireitoHover >= 0) || (s->toolbarHover >= 0) ||
@@ -1135,6 +1187,7 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
             {&s->painelMissoesAbertura, s->painelMissoesAberto},
             {&s->lojaAbertura,          s->lojaAberta},
             {&s->depositoAbertura,      s->depositoAberto},
+            {&s->painelSettingsAbertura, s->painelSettingsAberto},
         };
         for (auto &a : alvos)
         {
@@ -1148,6 +1201,15 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
     for (int i = 0; i < 3; i++)
         atualizarAnimal(s->animais[i], dt, s->tempoJogoMs);
     atualizarCachorro(s->cachorro, dt, s->tempoJogoMs);
+
+    {
+        int nivelAtual = nivelDoJogador(s->xp);
+        if (nivelAtual > s->nivelAnteriorParaSom)
+        {
+            tocarSfx(s->sons, s->sons.levelUp);
+            s->nivelAnteriorParaSom = nivelAtual;
+        }
+    }
 
     processarEventos(s);
     atualizarAnimacoes(s->toolbar, dt);

@@ -15,7 +15,7 @@ struct HudAssets
     SDL_Texture *avatarMasculino = nullptr;
     SDL_Texture *avatarFeminino = nullptr;
 
-    SDL_Texture *botoes[5] = {};
+    SDL_Texture *botoes[6] = {};
     SDL_Texture *caixaPresente = nullptr;
 };
 
@@ -33,6 +33,8 @@ inline const char *nomeBotaoHud(int indice)
         return "Ranking";
     case 4:
         return "Missões";
+    case 5:
+        return "Settings";
     }
     return "";
 }
@@ -57,6 +59,7 @@ inline HudAssets carregarHudAssets(SDL_Renderer *renderer)
     h.botoes[2] = carregarTextura(renderer, "assets/sprites/icons/hud/direito/amigos.png");
     h.botoes[3] = carregarTextura(renderer, "assets/sprites/icons/hud/direito/ranking.png");
     h.botoes[4] = carregarTextura(renderer, "assets/sprites/icons/hud/direito/avisos.png");
+    h.botoes[5] = carregarTextura(renderer, "assets/sprites/icons/hud/settings.png");
 
     return h;
 }
@@ -77,7 +80,7 @@ inline void liberarHudAssets(HudAssets &h)
         SDL_DestroyTexture(h.avatarMasculino);
     if (h.avatarFeminino)
         SDL_DestroyTexture(h.avatarFeminino);
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 6; i++)
         if (h.botoes[i])
             SDL_DestroyTexture(h.botoes[i]);
     if (h.caixaPresente)

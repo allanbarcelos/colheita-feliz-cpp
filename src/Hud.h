@@ -135,7 +135,7 @@ inline void desenharHudEsquerdo(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Fon
     desenharLinhaIconeValor(renderer, fonteValor, h.iconeCoracao,    popularidade, bx + 416, linhaY, icTam, corValor);
 }
 
-static constexpr int HUD_DIREITO_TOTAL = 5;
+static constexpr int HUD_DIREITO_TOTAL = 6;
 static constexpr int HUD_DIREITO_TAM = 60;
 static constexpr int HUD_DIREITO_PADDING = 8;
 static constexpr int HUD_DIREITO_GAP = 18;
