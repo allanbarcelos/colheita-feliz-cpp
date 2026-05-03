@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(ColheitaFeliz LANGUAGES CXX)
+project(FazendaDosSonhos LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,11 +32,18 @@ target_link_libraries(game PRIVATE
     nlohmann_json::nlohmann_json
 )
 
-add_executable(ColheitaFeliz WIN32
+# NOVO (fase 11): Windows resource script — embeda app_icon.ico no exe.
+# Em Linux/macOS APP_RC_FILE fica vazia, add_executable ignora silently.
+if(WIN32)
+    set(APP_RC_FILE src/app.rc)
+endif()
+
+add_executable(FazendaDosSonhos WIN32
     src/main.cpp
+    ${APP_RC_FILE}
 )
 
-target_link_libraries(ColheitaFeliz PRIVATE
+target_link_libraries(FazendaDosSonhos PRIVATE
     SDL2::SDL2main
     SDL2::SDL2
     SDL2_image::SDL2_image
@@ -45,4 +52,4 @@ target_link_libraries(ColheitaFeliz PRIVATE
     nlohmann_json::nlohmann_json
 )
 
-add_dependencies(ColheitaFeliz game)
+add_dependencies(FazendaDosSonhos game)

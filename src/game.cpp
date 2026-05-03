@@ -12,6 +12,8 @@
 #include "RecompensaDiaria.h"
 #include "AnimalLogica.h"
 #include "PainelSettings.h"
+#include "SaveGame.h"
+#include "TelaTitulo.h"
 
 #include <cmath>
 
@@ -83,7 +85,7 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->velocidadeTempo = VELOCIDADE_TEMPO_NORMAL;
     s->colheitas = 0;
     s->xp = 0;
-    s->ouro = 100;
+    s->ouro = 150;
     s->canteiroHover = -1;
     s->toolbarHover = -1;
     s->hudDireitoHover = -1;
@@ -142,6 +144,27 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->painelSettingsAberto = false;
     s->painelSettingsAbertura = 0.0f;
     s->nivelAnteriorParaSom = nivelDoJogador(s->xp);
+
+    s->estadoJogo = TELA_TITULO;
+    s->saveExiste = saveExiste();
+    s->botaoTituloHover = -1;
+    s->rodapeIconeHover = -1;
+    s->tipAtualIndex = 0;
+    s->tipUltimaTrocaMs = SDL_GetTicks();
+    s->passaroX1 = 0.0f;
+    s->passaroY1 = 180.0f;
+    s->passaroX2 = static_cast<float>(LARGURA_JANELA);
+    s->passaroY2 = 280.0f;
+    s->painelSettingsAbertoTitulo = false;
+
+    s->tituloBackground   = carregarTextura(renderer, "assets/sprites/ui/tela_titulo_background.png");
+    s->tituloLogo         = carregarTextura(renderer, "assets/sprites/ui/tela_titulo_logo.png");
+    s->tituloGlow         = gerarGlowRadial(renderer, 512);
+    s->tituloSparkles     = carregarTextura(renderer, "assets/sprites/ui/sparkles_sheet.png");
+    s->tituloPassaros     = carregarTextura(renderer, "assets/sprites/ui/passaros_sheet.png");
+    s->tituloIconeGithub  = carregarTextura(renderer, "assets/sprites/ui/icone_github.png");
+    s->tituloIconeLivepix = carregarTextura(renderer, "assets/sprites/ui/icone_livepix.png");
+    s->tituloIconeDiscord = carregarTextura(renderer, "assets/sprites/ui/icone_discord.png");
 
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
@@ -803,6 +826,14 @@ static void processarEventos(GameState *s)
                 s->debugAtivo = !s->debugAtivo;
                 adicionarLog(s, s->debugAtivo ? "Debug ON (F3)" : "Debug OFF (F3)");
             }
+            if (evento.key.keysym.sym == SDLK_s && (evento.key.keysym.mod & KMOD_CTRL))
+            {
+                if (salvarJogo(*s))
+                {
+                    adicionarLog(s, "Jogo salvo manualmente (Ctrl+S)");
+                    s->saveExiste = true;
+                }
+            }
 
             if (evento.key.keysym.sym == SDLK_l)
             {
@@ -1167,6 +1198,97 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
 
 GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
 {
+    if (s->estadoJogo == TELA_TITULO)
+    {
+        atualizarTelaTitulo(*s, dt);
+
+        SDL_Event e;
+        while (SDL_PollEvent(&e))
+        {
+            if (e.type == SDL_QUIT) s->solicitouSair = true;
+            if (e.type == SDL_MOUSEMOTION)
+            {
+                s->mouseX = e.motion.x;
+                s->mouseY = e.motion.y;
+                int hit = telaTituloHitTest(s->mouseX, s->mouseY, s->saveExiste);
+                s->botaoTituloHover = (hit >= 100 && hit <= 102) ? hit - 100 : -1;
+                s->rodapeIconeHover = (hit >= 200 && hit <= 202) ? hit - 200 : -1;
+            }
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+            {
+                if (s->painelSettingsAbertoTitulo)
+                {
+                    int valor = 0;
+                    int hit = painelSettingsHitTest(e.button.x, e.button.y, valor);
+                    if (hit == -2) s->painelSettingsAbertoTitulo = false;
+                    else if (hit == 1) { s->sons.volumeMusica = valor; atualizarVolumeMusica(s->sons); }
+                    else if (hit == 2) { s->sons.volumeSfx = valor; }
+                    else if (hit == 3) { s->sons.mudo = !s->sons.mudo; atualizarVolumeMusica(s->sons); }
+                    else if (hit == -1) s->painelSettingsAbertoTitulo = false;
+                    continue;
+                }
+
+                int hit = telaTituloHitTest(e.button.x, e.button.y, s->saveExiste);
+                if (hit > 0) tocarSfx(s->sons, s->sons.clickBotao);
+
+                switch (hit)
+                {
+                case 100:
+                    s->estadoJogo = JOGANDO;
+                    s->nivelAnteriorParaSom = nivelDoJogador(s->xp);
+                    break;
+                case 101:
+                    if (carregarJogo(*s))
+                    {
+                        s->estadoJogo = JOGANDO;
+                        s->nivelAnteriorParaSom = nivelDoJogador(s->xp);
+                    }
+                    break;
+                case 102:
+                    s->painelSettingsAbertoTitulo = true;
+                    break;
+                case 200:
+                    #ifdef _WIN32
+                        system("start https://github.com");
+                    #else
+                        system("xdg-open https://github.com");
+                    #endif
+                    break;
+                case 201:
+                    #ifdef _WIN32
+                        system("start https://livepix.gg");
+                    #else
+                        system("xdg-open https://livepix.gg");
+                    #endif
+                    break;
+                case 202:
+                    #ifdef _WIN32
+                        system("start https://discord.com");
+                    #else
+                        system("xdg-open https://discord.com");
+                    #endif
+                    break;
+                }
+            }
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
+            {
+                if (s->painelSettingsAbertoTitulo) s->painelSettingsAbertoTitulo = false;
+                else s->solicitouSair = true;
+            }
+        }
+
+        desenharTelaTitulo(renderer, s->fonte, s->fonteHud, s->fontePequena, *s);
+        if (s->painelSettingsAbertoTitulo)
+            desenharPainelSettings(renderer, s->fonte, s->fontePequena, s->sons, 1.0f);
+
+        bool sobreBtn = s->botaoTituloHover >= 0 || s->rodapeIconeHover >= 0;
+        int tipoCursor = sobreBtn ? CURSOR_APONTANDO : CURSOR_NORMAL;
+        desenharCursorFerramenta(renderer, s->toolbar, s->mouseX, s->mouseY, nullptr, true, tipoCursor);
+
+        SDL_RenderPresent(renderer);
+        return;
+    }
+
     s->tempoJogoMs += static_cast<Uint32>(dt * s->velocidadeTempo * 1000.0f);
 
     if (s->tempoJogoMs - s->timestampUltimoResetMissoes >= RESET_DIARIO_MS)

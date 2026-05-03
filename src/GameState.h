@@ -82,6 +82,25 @@ struct GameState
     float painelSettingsAbertura;
     int nivelAnteriorParaSom;
 
+    int estadoJogo;
+    bool saveExiste;
+    int botaoTituloHover;
+    int rodapeIconeHover;
+    int tipAtualIndex;
+    Uint32 tipUltimaTrocaMs;
+    float passaroX1, passaroY1;
+    float passaroX2, passaroY2;
+    bool painelSettingsAbertoTitulo;
+
+    SDL_Texture *tituloBackground;   // NOVO: bg dedicado MJ-quality (substitui reuso farm in-game)
+    SDL_Texture *tituloLogo;
+    SDL_Texture *tituloGlow;         // NOVO: radial atras do logo, additive blend + breathing alpha
+    SDL_Texture *tituloSparkles;     // NOVO: sparkles 4 frames atras do logo, opcional
+    SDL_Texture *tituloPassaros;
+    SDL_Texture *tituloIconeGithub;
+    SDL_Texture *tituloIconeLivepix;
+    SDL_Texture *tituloIconeDiscord;
+
     Assets assets;
     CropAssets cropAssets;
     HudAssets hudAssets;

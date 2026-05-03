@@ -1,6 +1,12 @@
 #pragma once
 #include <SDL2/SDL.h>
 
+enum EstadoJogo
+{
+    TELA_TITULO = 0,
+    JOGANDO = 1
+};
+
 enum EstadoCanteiro
 {
     BLOQUEADO = 0,

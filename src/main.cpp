@@ -1,4 +1,5 @@
 #include "GameState.h"
+#include "SaveGame.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -128,12 +129,22 @@ int main(int argc, char *argv[])
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
     SDL_Window *janela = SDL_CreateWindow(
-        "Colheita Feliz",
+        "Fazenda dos Sonhos",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         LARGURA_JANELA,
         ALTURA_JANELA,
         0);
+
+    // NOVO (fase 11): icone da janela — laurel + broto verde, sprite app_icon_mark.png 1024x1024.
+    // SDL pega o surface, faz downscale interno pra cada contexto (16/32/48px).
+    // Substitui o icone cinza generico padrao do SDL.
+    SDL_Surface *iconeJanela = IMG_Load("assets/sprites/ui/app_icon_mark.png");
+    if (iconeJanela)
+    {
+        SDL_SetWindowIcon(janela, iconeJanela);
+        SDL_FreeSurface(iconeJanela);  // SDL copia internamente, ok liberar
+    }
 
     SDL_Renderer *renderer = SDL_CreateRenderer(
         janela, -1,
@@ -187,6 +198,12 @@ int main(int argc, char *argv[])
         }
 
         gc.frame(&estado, renderer, dt);
+    }
+
+    if (estado.estadoJogo == JOGANDO)
+    {
+        salvarJogo(estado);
+        printf("[platform] auto-save no shutdown\n");
     }
 
     descarregarGameCode(&gc);

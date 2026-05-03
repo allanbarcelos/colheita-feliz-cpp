@@ -49,8 +49,8 @@ static constexpr int PAINEL_Y = (ALTURA_JANELA - PAINEL_ALTURA) / 2;
 static constexpr int VELOCIDADE_TEMPO_NORMAL = 1.0f;
 static constexpr int VELOCIDADE_TEMPO_DEBUG = 60.0f;
 
-static constexpr Uint32 INTERVALO_SORTEIO_EVENTO_MS = 15000;
-static constexpr int CHANCE_EVENTO_PCT = 30;
+static constexpr Uint32 INTERVALO_SORTEIO_EVENTO_MS = 20000;
+static constexpr int CHANCE_EVENTO_PCT = 25;
 static constexpr int PENALIDADE_EVENTO = 20;
 
 static constexpr int HUD_MARGEM = 16;
@@ -78,7 +78,7 @@ static constexpr Uint32 CACHORRO_TEMPO_PARADO_MS = 3000;
 
 static constexpr Uint32 INTERVALO_PRODUCAO_MS = 8u * 3600u * 1000u;
 static constexpr int RACAO_INICIAL = 3;
-static constexpr int PRECO_RACAO = 30;
+static constexpr int PRECO_RACAO = 20;
 
 static constexpr int ANIMAL_FRAME_TEMPO_MS = 165;
 static constexpr float ANIMAL_VELOCIDADE_PX_S = 18.0f;
