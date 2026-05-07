@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Hot-reload watcher: rebuilda game.dll quando qualquer src/*.cpp ou src/*.h muda.
-# platform.exe detecta o novo mtime e recarrega sozinho.
+# Hot-reload watcher: rebuilda a lib do jogo quando qualquer src/*.cpp ou src/*.h muda.
+# O executável detecta o novo mtime e recarrega sozinho (Windows: game.dll, Linux: game.so).
 
 set -u
 
@@ -27,7 +27,7 @@ while true; do
         if [ -n "$ultimo_hash" ]; then
             echo "[watch] mudança detectada — rebuilding..."
             if cmake --build "$BUILD_DIR" --target "$TARGET" 2>&1 | tail -20; then
-                echo "[watch] ✔ game.dll atualizado"
+                echo "[watch] ✔ game lib atualizada"
             else
                 echo "[watch] ✗ build falhou"
             fi

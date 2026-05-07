@@ -52,4 +52,9 @@ target_link_libraries(FazendaDosSonhos PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+# dlopen/dlsym/dlclose estão em libdl no Linux; no macOS já estão no SDK.
+if(UNIX)
+    target_link_libraries(FazendaDosSonhos PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
 add_dependencies(FazendaDosSonhos game)
