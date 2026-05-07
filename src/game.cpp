@@ -181,6 +181,72 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->inicializado = true;
 }
 
+static void acaoColher(GameState *s, Canteiro &c)
+{
+    s->colheitas++;
+    int ganho = TABELA_CROPS[c.tipoCrop].precoVenda * c.saude / 100;
+    s->valorDeposito += ganho;
+    s->inventarioColhidos[c.tipoCrop]++;
+    char msg[96];
+    snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)", TABELA_CROPS[c.tipoCrop].nome, ganho);
+    adicionarLog(s, msg);
+    incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
+    tocarSfx(s->sons, s->sons.colher);
+
+    c.temporadaAtual++;
+    if (c.temporadaAtual <= TABELA_CROPS[c.tipoCrop].temporadas)
+    {
+        c.estado = PLANTADO;
+        c.estagioCrop = 1;
+        c.timestampPlantio = s->tempoJogoMs;
+        c.saude = 100;
+        c.seca = false;
+        c.praga = 0;
+        c.ultimoSorteioEventoMs = s->tempoJogoMs;
+    }
+    else
+    {
+        c.estado = RESTOS;
+        c.tipoCrop = -1;
+        c.estagioCrop = 0;
+        c.timestampPlantio = 0;
+        c.temporadaAtual = 0;
+        c.saude = 100;
+        c.seca = false;
+        c.praga = 0;
+    }
+}
+
+static void acaoRegar(GameState *s, Canteiro &c)
+{
+    c.seca = false;
+    c.ultimoSorteioEventoMs = s->tempoJogoMs;
+    s->xp += 2;
+    adicionarLog(s, "Regou canteiro (+2 XP)");
+    incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
+    tocarSfx(s->sons, s->sons.regar);
+}
+
+static void acaoRemoverErva(GameState *s, Canteiro &c)
+{
+    c.praga = 0;
+    c.ultimoSorteioEventoMs = s->tempoJogoMs;
+    s->xp += 2;
+    adicionarLog(s, "Removeu erva daninha (+2 XP)");
+    incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+    tocarSfx(s->sons, s->sons.removerPraga);
+}
+
+static void acaoPesticida(GameState *s, Canteiro &c)
+{
+    c.praga = 0;
+    c.ultimoSorteioEventoMs = s->tempoJogoMs;
+    s->xp += 2;
+    adicionarLog(s, "Aplicou pesticida (+2 XP)");
+    incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
+    tocarSfx(s->sons, s->sons.pesticida);
+}
+
 static void processarEventos(GameState *s)
 {
     SDL_Event evento;
@@ -616,122 +682,23 @@ static void processarEventos(GameState *s)
                         break;
                     case MAO:
                         if (c.estado == MADURO)
-                        {
-                            s->colheitas++;
-
-                            int ganho = TABELA_CROPS[c.tipoCrop].precoVenda * c.saude / 100;
-
-                            s->valorDeposito += ganho;
-                            s->inventarioColhidos[c.tipoCrop]++;
-
-                            {
-                                char msg[96];
-                                snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)",
-                                         TABELA_CROPS[c.tipoCrop].nome, ganho);
-                                adicionarLog(s, msg);
-                                incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
-                                tocarSfx(s->sons, s->sons.colher);
-                            }
-
-                            c.temporadaAtual++;
-
-                            int totalTemp = TABELA_CROPS[c.tipoCrop].temporadas;
-
-                            if (c.temporadaAtual <= totalTemp)
-                            {
-                                c.estado = PLANTADO;
-                                c.estagioCrop = 1;
-                                c.timestampPlantio = s->tempoJogoMs;
-                                c.saude = 100;
-                                c.seca = false;
-                                c.praga = 0;
-                                c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            }
-                            else
-                            {
-                                c.estado = RESTOS;
-                                c.tipoCrop = -1;
-                                c.estagioCrop = 0;
-                                c.timestampPlantio = 0;
-                                c.temporadaAtual = 0;
-                                c.saude = 100;
-                                c.seca = false;
-                                c.praga = 0;
-                            }
-                        }
+                            acaoColher(s, c);
                         break;
                     case REGADOR:
                         if (c.seca)
-                        {
-                            c.seca = false;
-                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            s->xp += 2;
-                            adicionarLog(s, "Regou canteiro (+2 XP)");
-                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
-                            tocarSfx(s->sons, s->sons.regar);
-                        }
+                            acaoRegar(s, c);
                         break;
                     case REMOVEDOR:
                         if (c.praga == 1)
-                        {
-                            c.praga = 0;
-                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            s->xp += 2;
-                            adicionarLog(s, "Removeu erva daninha (+2 XP)");
-                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
-                            tocarSfx(s->sons, s->sons.removerPraga);
-                        }
+                            acaoRemoverErva(s, c);
                         break;
                     case PESTICIDA:
                         if (c.praga == 2)
-                        {
-                            c.praga = 0;
-                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            s->xp += 2;
-                            adicionarLog(s, "Aplicou pesticida (+2 XP)");
-                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
-                            tocarSfx(s->sons, s->sons.pesticida);
-                        }
+                            acaoPesticida(s, c);
                         break;
                     case CURSOR:
                         if (c.estado == MADURO)
-                        {
-                            s->colheitas++;
-                            int ganho = TABELA_CROPS[c.tipoCrop].precoVenda * c.saude / 100;
-                            s->valorDeposito += ganho;
-                            s->inventarioColhidos[c.tipoCrop]++;
-                            {
-                                char msg[96];
-                                snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)",
-                                         TABELA_CROPS[c.tipoCrop].nome, ganho);
-                                adicionarLog(s, msg);
-                                incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
-                                tocarSfx(s->sons, s->sons.colher);
-                            }
-                            c.temporadaAtual++;
-                            int totalTemp = TABELA_CROPS[c.tipoCrop].temporadas;
-                            if (c.temporadaAtual <= totalTemp)
-                            {
-                                c.estado = PLANTADO;
-                                c.estagioCrop = 1;
-                                c.timestampPlantio = s->tempoJogoMs;
-                                c.saude = 100;
-                                c.seca = false;
-                                c.praga = 0;
-                                c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            }
-                            else
-                            {
-                                c.estado = RESTOS;
-                                c.tipoCrop = -1;
-                                c.estagioCrop = 0;
-                                c.timestampPlantio = 0;
-                                c.temporadaAtual = 0;
-                                c.saude = 100;
-                                c.seca = false;
-                                c.praga = 0;
-                            }
-                        }
+                            acaoColher(s, c);
                         else if (c.estado == RESTOS)
                         {
                             c.estado = VAZIO;
@@ -739,32 +706,11 @@ static void processarEventos(GameState *s)
                             c.estagioCrop = 0;
                         }
                         else if (c.seca)
-                        {
-                            c.seca = false;
-                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            s->xp += 2;
-                            adicionarLog(s, "Regou canteiro (+2 XP)");
-                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REGAR);
-                            tocarSfx(s->sons, s->sons.regar);
-                        }
+                            acaoRegar(s, c);
                         else if (c.praga == 1)
-                        {
-                            c.praga = 0;
-                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            s->xp += 2;
-                            adicionarLog(s, "Removeu erva daninha (+2 XP)");
-                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
-                            tocarSfx(s->sons, s->sons.removerPraga);
-                        }
+                            acaoRemoverErva(s, c);
                         else if (c.praga == 2)
-                        {
-                            c.praga = 0;
-                            c.ultimoSorteioEventoMs = s->tempoJogoMs;
-                            s->xp += 2;
-                            adicionarLog(s, "Aplicou pesticida (+2 XP)");
-                            incrementarProgressoMissao(s->missoesDiarias, MISSAO_REMOVER_PRAGA);
-                            tocarSfx(s->sons, s->sons.pesticida);
-                        }
+                            acaoPesticida(s, c);
                         break;
                     }
                 }
