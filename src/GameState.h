@@ -123,3 +123,36 @@ struct GameState
 
 typedef void (*GameInitFn)(GameState *, SDL_Renderer *);
 typedef void (*GameFrameFn)(GameState *, SDL_Renderer *, float);
+
+inline void liberarGameState(GameState &s)
+{
+    if (!s.inicializado)
+        return;
+
+    liberarIconesToolbar(s.toolbar);
+    liberarAssets(s.assets);
+    liberarCropAssets(s.cropAssets);
+    liberarHudAssets(s.hudAssets);
+    liberarAnimalAssets(s.animalAssets);
+    liberarDecoracaoAssets(s.decoracaoAssets);
+    liberarSons(s.sons);
+
+    auto destroi = [](SDL_Texture *&t) {
+        if (t) { SDL_DestroyTexture(t); t = nullptr; }
+    };
+    destroi(s.tituloBackground);
+    destroi(s.tituloLogo);
+    destroi(s.tituloGlow);
+    destroi(s.tituloSparkles);
+    destroi(s.tituloPassaros);
+    destroi(s.tituloIconeGithub);
+    destroi(s.tituloIconeLivepix);
+    destroi(s.tituloIconeDiscord);
+
+    if (s.fonteTooltip) { TTF_CloseFont(s.fonteTooltip); s.fonteTooltip = nullptr; }
+    if (s.fontePequena) { TTF_CloseFont(s.fontePequena); s.fontePequena = nullptr; }
+    if (s.fonte) { TTF_CloseFont(s.fonte); s.fonte = nullptr; }
+    if (s.fonteHud) { TTF_CloseFont(s.fonteHud); s.fonteHud = nullptr; }
+
+    s.inicializado = false;
+}

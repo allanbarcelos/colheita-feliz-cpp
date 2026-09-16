@@ -14,8 +14,12 @@
 #include "PainelSettings.h"
 #include "SaveGame.h"
 #include "TelaTitulo.h"
+#include "Player.h"
 
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <string>
 
 static void inicializarCanteiros(GameState *s)
 {
@@ -49,19 +53,63 @@ static void inicializarCanteiros(GameState *s)
     }
 }
 
+static TTF_Font *abrirFonte(const char *primaria, const char *fallback, int tamanho)
+{
+    TTF_Font *f = TTF_OpenFont(resolverCaminho(primaria).c_str(), tamanho);
+    if (f)
+        return f;
+    return TTF_OpenFont(resolverCaminho(fallback).c_str(), tamanho);
+}
+
+enum ModalAberto
+{
+    MODAL_NENHUM = 0,
+    MODAL_SETTINGS,
+    MODAL_MISSOES,
+    MODAL_LOJA,
+    MODAL_DEPOSITO,
+    MODAL_SEMENTES
+};
+
+static ModalAberto modalAberto(const GameState *s)
+{
+    if (s->painelSettingsAberto) return MODAL_SETTINGS;
+    if (s->painelMissoesAberto)  return MODAL_MISSOES;
+    if (s->lojaAberta)           return MODAL_LOJA;
+    if (s->depositoAberto)       return MODAL_DEPOSITO;
+    if (s->toolbar.painelAberto) return MODAL_SEMENTES;
+    return MODAL_NENHUM;
+}
+
+static void fecharModais(GameState *s)
+{
+    s->lojaAberta = false;
+    s->depositoAberto = false;
+    s->painelMissoesAberto = false;
+    s->painelSettingsAberto = false;
+    s->toolbar.painelAberto = false;
+}
+
+static void aplicarMouseLogico(GameState *s, SDL_Renderer *renderer, int wx, int wy)
+{
+    janelaParaLogico(renderer, wx, wy, &s->mouseX, &s->mouseY);
+}
+
 GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
 {
-    carregarConfig("assets/config.ini");
+    carregarConfig(resolverCaminho("assets/config.ini").c_str());
 
     if (s->inicializado)
     {
         return;
     }
 
-    s->fonte = TTF_OpenFont("assets/fonts/Poppins-SemiBold.ttf", 17);
-    s->fontePequena = TTF_OpenFont("assets/fonts/Poppins-Bold.ttf", 14);
-    s->fonteTooltip = TTF_OpenFont("assets/fonts/Poppins-SemiBold.ttf", 16);
-    s->fonteHud = TTF_OpenFont("assets/fonts/Poppins-Bold.ttf", 20);
+    srand(static_cast<unsigned>(time(nullptr)));
+
+    s->fonte = abrirFonte("assets/fonts/Poppins-SemiBold.ttf", "assets/fonts/Nunito.ttf", 17);
+    s->fontePequena = abrirFonte("assets/fonts/Poppins-Bold.ttf", "assets/fonts/Nunito.ttf", 14);
+    s->fonteTooltip = abrirFonte("assets/fonts/Poppins-SemiBold.ttf", "assets/fonts/Nunito.ttf", 16);
+    s->fonteHud = abrirFonte("assets/fonts/Poppins-Bold.ttf", "assets/fonts/Nunito.ttf", 20);
     if (s->fonte)         TTF_SetFontHinting(s->fonte,         TTF_HINTING_LIGHT);
     if (s->fontePequena)  TTF_SetFontHinting(s->fontePequena,  TTF_HINTING_LIGHT);
     if (s->fonteTooltip)  TTF_SetFontHinting(s->fonteTooltip,  TTF_HINTING_LIGHT);
@@ -103,7 +151,7 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
         s->logMensagens[i][0] = '\0';
 
     sortearMissoesDiarias(s->missoesDiarias);
-    s->timestampUltimoResetMissoes = 0;
+    s->timestampUltimoResetMissoes = static_cast<Uint32>(diaCivilAtual());
     s->painelMissoesAberto = false;
     s->painelMissoesAbertura = 0.0f;
     s->lojaAbertura = 0.0f;
@@ -162,9 +210,9 @@ GAME_API void game_init(GameState *s, SDL_Renderer *renderer)
     s->tituloGlow         = gerarGlowRadial(renderer, 512);
     s->tituloSparkles     = carregarTextura(renderer, "assets/sprites/ui/sparkles_sheet.png");
     s->tituloPassaros     = carregarTextura(renderer, "assets/sprites/ui/passaros_sheet.png");
-    s->tituloIconeGithub  = carregarTextura(renderer, "assets/sprites/ui/icone_github.png");
-    s->tituloIconeLivepix = carregarTextura(renderer, "assets/sprites/ui/icone_livepix.png");
-    s->tituloIconeDiscord = carregarTextura(renderer, "assets/sprites/ui/icone_discord.png");
+    s->tituloIconeGithub  = carregarTexturaOpcional(renderer, "assets/sprites/ui/icone_github.png");
+    s->tituloIconeLivepix = carregarTexturaOpcional(renderer, "assets/sprites/ui/icone_livepix.png");
+    s->tituloIconeDiscord = carregarTexturaOpcional(renderer, "assets/sprites/ui/icone_discord.png");
 
     for (int i = 0; i < TOTAL_CROPS; i++)
     {
@@ -187,8 +235,11 @@ static void acaoColher(GameState *s, Canteiro &c)
     int ganho = TABELA_CROPS[c.tipoCrop].precoVenda * c.saude / 100;
     s->valorDeposito += ganho;
     s->inventarioColhidos[c.tipoCrop]++;
+    int xpGanho = xpPorColheita(c.tipoCrop);
+    s->xp += xpGanho;
+    ganharPopularidade(s->popularidade, 1);
     char msg[96];
-    snprintf(msg, sizeof(msg), "Colheu %s (+%d no deposito)", TABELA_CROPS[c.tipoCrop].nome, ganho);
+    snprintf(msg, sizeof(msg), "Colheu %s (+%d deposito, +%d XP)", TABELA_CROPS[c.tipoCrop].nome, ganho, xpGanho);
     adicionarLog(s, msg);
     incrementarProgressoMissao(s->missoesDiarias, MISSAO_COLHER);
     tocarSfx(s->sons, s->sons.colher);
@@ -247,7 +298,10 @@ static void acaoPesticida(GameState *s, Canteiro &c)
     tocarSfx(s->sons, s->sons.pesticida);
 }
 
-static void processarEventos(GameState *s)
+static bool processarCliqueModal(GameState *s, int x, int y);
+static bool processarCliqueMundo(GameState *s, int x, int y);
+
+static void processarEventos(GameState *s, SDL_Renderer *renderer)
 {
     SDL_Event evento;
     while (SDL_PollEvent(&evento))
@@ -259,8 +313,7 @@ static void processarEventos(GameState *s)
 
         if (evento.type == SDL_MOUSEMOTION)
         {
-            s->mouseX = evento.motion.x;
-            s->mouseY = evento.motion.y;
+            aplicarMouseLogico(s, renderer, evento.motion.x, evento.motion.y);
 
             if (s->decoracaoArrastando >= 0 && s->decoracaoArrastando < s->totalDecoracoesColocadas)
             {
@@ -276,9 +329,10 @@ static void processarEventos(GameState *s)
 
         if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_RIGHT)
         {
+            aplicarMouseLogico(s, renderer, evento.button.x, evento.button.y);
             int idx = decoracaoColocadaHitTest(s->decoracoesColocadas,
                                                s->totalDecoracoesColocadas,
-                                               evento.button.x, evento.button.y);
+                                               s->mouseX, s->mouseY);
             if (idx >= 0)
             {
                 int item = s->decoracoesColocadas[idx].idItem;
@@ -293,23 +347,35 @@ static void processarEventos(GameState *s)
 
         if (evento.type == SDL_MOUSEBUTTONDOWN && evento.button.button == SDL_BUTTON_LEFT)
         {
+            aplicarMouseLogico(s, renderer, evento.button.x, evento.button.y);
+            int x = s->mouseX;
+            int y = s->mouseY;
+
             if (s->debugAtivo)
             {
                 char dbg[64];
-                snprintf(dbg, sizeof(dbg), "Click @ (%d, %d)", evento.button.x, evento.button.y);
+                snprintf(dbg, sizeof(dbg), "Click @ (%d, %d)", x, y);
                 adicionarLog(s, dbg);
             }
 
-            if (s->modoColocarItem >= 0 && s->totalDecoracoesColocadas < MAX_DECORACOES_COLOCADAS)
+            if (s->modoColocarItem >= 0 && s->totalDecoracoesColocadas < MAX_DECORACOES_COLOCADAS
+                && modalAberto(s) == MODAL_NENHUM)
             {
                 int idx = s->totalDecoracoesColocadas++;
                 s->decoracoesColocadas[idx].idItem = s->modoColocarItem;
-                s->decoracoesColocadas[idx].x = evento.button.x;
-                s->decoracoesColocadas[idx].y = evento.button.y;
+                s->decoracoesColocadas[idx].x = x;
+                s->decoracoesColocadas[idx].y = y;
                 s->decoracoesColocadas[idx].rotacao = s->rotacaoColocando;
                 s->inventarioDecoracoes[s->modoColocarItem]--;
+                ganharPopularidade(s->popularidade, 2);
                 if (s->inventarioDecoracoes[s->modoColocarItem] <= 0)
                     s->modoColocarItem = primeiroItemNoInventario(s->inventarioDecoracoes);
+                continue;
+            }
+
+            if (modalAberto(s) != MODAL_NENHUM)
+            {
+                processarCliqueModal(s, x, y);
                 continue;
             }
 
@@ -317,7 +383,7 @@ static void processarEventos(GameState *s)
             {
                 int idxDeco = decoracaoColocadaHitTest(s->decoracoesColocadas,
                                                        s->totalDecoracoesColocadas,
-                                                       evento.button.x, evento.button.y);
+                                                       x, y);
                 if (idxDeco >= 0)
                 {
                     s->decoracaoArrastando = idxDeco;
@@ -325,79 +391,48 @@ static void processarEventos(GameState *s)
                 }
             }
 
-            if (caixaRecompensaClicada(evento.button.x, evento.button.y, s->recompensaDisponivel))
+            if (caixaRecompensaClicada(x, y, s->recompensaDisponivel))
             {
                 char msg[96];
                 sortearRecompensaDiaria(&s->ouro, &s->moedasVerdes,
                                          s->inventarioSementes, msg, sizeof(msg));
                 adicionarLog(s, msg);
                 tocarSfx(s->sons, s->sons.abrirCaixa);
+                ganharPopularidade(s->popularidade, 1);
                 s->recompensaDisponivel = false;
-                s->ultimoDiaRecompensa = static_cast<int>(s->tempoJogoMs / RESET_DIARIO_MS);
+                s->ultimoDiaRecompensa = diaCivilAtual();
                 continue;
             }
 
-            if (s->painelMissoesAberto)
+            if (hudAvatarHitTest(x, y))
             {
-                int hit = painelMissoesHitTest(evento.button.x, evento.button.y, s->missoesDiarias);
-                if (hit == -2)
-                {
-                    s->painelMissoesAberto = false;
-                }
-                else if (hit >= 0)
-                {
-                    Missao &m = s->missoesDiarias[hit];
-                    if (m.concluida && !m.coletada)
-                    {
-                        s->ouro += m.recompensaOuro;
-                        s->moedasVerdes += m.recompensaVerdes;
-                        s->xp += m.recompensaXp;
-                        m.coletada = true;
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "Missao coletada (+%d ouro, +%d verdes, +%d XP)",
-                                 m.recompensaOuro, m.recompensaVerdes, m.recompensaXp);
-                        adicionarLog(s, msg);
-                        tocarSfx(s->sons, s->sons.missaoCompleta);
-                    }
-                }
-                else if (hit == -1)
-                {
-                    s->painelMissoesAberto = false;
-                }
+                s->generoJogador = s->generoJogador == 0 ? 1 : 0;
+                adicionarLog(s, s->generoJogador == 1 ? "Avatar: feminino" : "Avatar: masculino");
+                tocarSfx(s->sons, s->sons.clickBotao);
                 continue;
             }
 
-            if (s->painelSettingsAberto)
-            {
-                int valor = 0;
-                int hit = painelSettingsHitTest(evento.button.x, evento.button.y, valor);
-                if (hit == -2) s->painelSettingsAberto = false;
-                else if (hit == 1) { s->sons.volumeMusica = valor; atualizarVolumeMusica(s->sons); }
-                else if (hit == 2) { s->sons.volumeSfx = valor; }
-                else if (hit == 3) { s->sons.mudo = !s->sons.mudo; atualizarVolumeMusica(s->sons); }
-                else if (hit == -1) s->painelSettingsAberto = false;
-                continue;
-            }
-
-            int botaoHud = hudDireitoHitTest(evento.button.x, evento.button.y);
+            int botaoHud = hudDireitoHitTest(x, y);
             if (botaoHud >= 0)
             {
                 switch (botaoHud)
                 {
                 case 0:
-                    s->depositoAberto = !s->depositoAberto;
-                    s->lojaAberta = false;
+                {
+                    bool abrir = !s->depositoAberto;
+                    fecharModais(s);
+                    s->depositoAberto = abrir;
                     s->modoCompraCanteiro = false;
-                    s->toolbar.painelAberto = false;
-                    s->painelMissoesAberto = false;
                     break;
+                }
                 case 1:
-                    s->lojaAberta = !s->lojaAberta;
-                    s->depositoAberto = false;
+                {
+                    bool abrir = !s->lojaAberta;
+                    fecharModais(s);
+                    s->lojaAberta = abrir;
                     s->modoCompraCanteiro = false;
-                    s->toolbar.painelAberto = false;
-                    s->painelMissoesAberto = false;
                     break;
+                }
                 case 2:
                     adicionarLog(s, "Amigos em breve (fase 16)");
                     break;
@@ -405,316 +440,25 @@ static void processarEventos(GameState *s)
                     adicionarLog(s, "Ranking em breve");
                     break;
                 case 4:
-                    s->painelMissoesAberto = !s->painelMissoesAberto;
-                    s->lojaAberta = false;
-                    s->depositoAberto = false;
+                {
+                    bool abrir = !s->painelMissoesAberto;
+                    fecharModais(s);
+                    s->painelMissoesAberto = abrir;
                     break;
+                }
                 case 5:
-                    s->painelSettingsAberto = !s->painelSettingsAberto;
+                {
+                    bool abrir = !s->painelSettingsAberto;
+                    fecharModais(s);
+                    s->painelSettingsAberto = abrir;
                     break;
+                }
                 }
                 tocarSfx(s->sons, s->sons.clickBotao);
                 continue;
             }
 
-            if (s->lojaAberta)
-            {
-                int hit = lojaHitTest(evento.button.x, evento.button.y, *s);
-                if (hit == -2)
-                {
-                    s->lojaAberta = false;
-                }
-                else if (hit >= 100 && hit < 100 + TOTAL_TABS_LOJA)
-                {
-                    int tab = hit - 100;
-                    bool habilitada = (tab == TAB_SEMENTES) || (tab == TAB_RACOES) || (tab == TAB_DECORACAO);
-                    if (habilitada)
-                        s->lojaTabAtiva = tab;
-                    else
-                        adicionarLog(s, "Em breve");
-                }
-                else if (hit >= 200 && hit < 300)
-                {
-                    int slot = hit - 200;
-                    if (!atingiuNivel(s->xp, TABELA_CROPS[slot].nivelDesbloqueio))
-                    {
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
-                                 TABELA_CROPS[slot].nome, TABELA_CROPS[slot].nivelDesbloqueio);
-                        adicionarLog(s, msg);
-                    }
-                    else
-                    {
-                        int preco = TABELA_CROPS[slot].precoCompra;
-                        if (s->ouro >= preco)
-                        {
-                            s->ouro -= preco;
-                            s->inventarioSementes[slot]++;
-                            char msg[96];
-                            snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
-                                     TABELA_CROPS[slot].nome, preco);
-                            adicionarLog(s, msg);
-                            tocarSfx(s->sons, s->sons.comprar);
-                        }
-                    }
-                }
-                else if (hit >= 300 && hit < 300 + TOTAL_DECORACOES)
-                {
-                    int slot = hit - 300;
-                    const ItemDecoracao &d = TABELA_DECORACOES[slot];
-                    int nivelAtual = nivelDoJogador(s->xp);
-                    if (nivelAtual < d.requerLv)
-                    {
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d", d.nome, d.requerLv);
-                        adicionarLog(s, msg);
-                    }
-                    else if (s->ouro < d.precoOuro || s->moedasVerdes < d.precoVerdes)
-                    {
-                        adicionarLog(s, "Sem ouro ou moedas verdes suficientes");
-                    }
-                    else
-                    {
-                        s->ouro -= d.precoOuro;
-                        s->moedasVerdes -= d.precoVerdes;
-                        s->inventarioDecoracoes[slot]++;
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "Comprou %s (no inventario)", d.nome);
-                        adicionarLog(s, msg);
-                        tocarSfx(s->sons, s->sons.comprar);
-                    }
-                }
-                else if (hit == 999)
-                {
-                    if (s->ouro >= PRECO_RACAO)
-                    {
-                        s->ouro -= PRECO_RACAO;
-                        s->inventarioRacao++;
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "Comprou 1 Racao (-%d ouro)", PRECO_RACAO);
-                        adicionarLog(s, msg);
-                        tocarSfx(s->sons, s->sons.comprar);
-                    }
-                }
-                else if (hit == -1)
-                {
-                    s->lojaAberta = false;
-                }
-
-                continue;
-            }
-
-            if (s->depositoAberto)
-            {
-                int resDep = depositoHitTest(evento.button.x, evento.button.y);
-                if (resDep == -2)
-                {
-                    s->depositoAberto = false;
-                }
-                else if (resDep == 100)
-                {
-                    if (s->valorDeposito > 0)
-                    {
-                                              char msg[96];
-                        snprintf(msg, sizeof(msg), "Vendeu deposito (+%d ouro)", s->valorDeposito);
-                        adicionarLog(s, msg);
-                        tocarSfx(s->sons, s->sons.vender);
-
-                        s->ouro += s->valorDeposito;
-                        s->valorDeposito = 0;
-
-                        for (int i = 0; i < TOTAL_CROPS; i++)
-                            s->inventarioColhidos[i] = 0;
-                    }
-                }
-                else if (resDep == -1)
-                {
-                    s->depositoAberto = false;
-                }
-                continue;
-            }
-
-            int animalClicado = animalHitTest(s->animais, evento.button.x, evento.button.y);
-            if (animalClicado >= 0)
-            {
-                Animal &a = s->animais[animalClicado];
-
-                switch (a.tipo)
-                {
-                case GALINHA: tocarSfx(s->sons, s->sons.galinhaCluck); break;
-                case VACA:    tocarSfx(s->sons, s->sons.vacaMoo);     break;
-                case OVELHA:  tocarSfx(s->sons, s->sons.ovelhaBaa);   break;
-                }
-
-                if (a.produtoPronto)
-                {
-                    s->inventarioProdutos[a.tipo]++;
-                    s->valorDeposito += precoProduto(a.tipo);
-                    a.produtoPronto = false;
-                    char msg[96];
-                    snprintf(msg, sizeof(msg), "Recolheu %s (+%d no deposito)",
-                             nomeProduto(a.tipo), precoProduto(a.tipo));
-                    adicionarLog(s, msg);
-                    continue;
-                }
-
-                if (a.comFome && s->inventarioRacao > 0)
-                {
-                    s->inventarioRacao--;
-                    a.comFome = false;
-                    a.timestampUltimaRefeicao = s->tempoJogoMs;
-                    char msg[96];
-                    snprintf(msg, sizeof(msg), "Alimentou %s",
-                             a.tipo == GALINHA ? "galinha" :
-                             a.tipo == VACA    ? "vaca"    : "ovelha");
-                    adicionarLog(s, msg);
-                    continue;
-                }
-
-                if (a.comFome && s->inventarioRacao == 0)
-                {
-                    adicionarLog(s, "Sem racao! Compra na Loja");
-                    continue;
-                }
-            }
-
-            if (cachorroHitTest(s->cachorro, evento.button.x, evento.button.y))
-            {
-                tocarSfx(s->sons, s->sons.cachorroBark);
-                continue;
-            }
-
-            if (s->toolbar.painelAberto)
-            {
-                int resultado = painelSementeHitTest(evento.button.x, evento.button.y);
-                if (resultado >= 0)
-                {
-                    s->toolbar.sementeSelecionada = resultado;
-                    s->toolbar.painelAberto = false;
-                }
-                else
-                {
-                    s->toolbar.painelAberto = false;
-                }
-            }
-            else
-            {
-                int slotClicado = toolbarHitTest(evento.button.x, evento.button.y);
-
-                if (slotClicado >= 0)
-                {
-                    Ferramenta nova = static_cast<Ferramenta>(slotClicado);
-                    if (nova == SACOLA)
-                    {
-                        s->toolbar.painelAberto = !s->toolbar.painelAberto;
-                        s->toolbar.selecionada = SACOLA;
-                    }
-                    else
-                    {
-                        s->toolbar.selecionada = nova;
-                        s->toolbar.painelAberto = false;
-                    }
-                }
-                else if (s->canteiroHover >= 0)
-                {
-                    Canteiro &c = s->canteiros[s->canteiroHover];
-
-                    if (s->modoCompraCanteiro && c.estado == BLOQUEADO)
-                    {
-                        int preco = PRECO_CANTEIRO_BASE + s->canteirosComprados * PRECO_CANTEIRO_INCREMENTO;
-                        if (s->ouro >= preco)
-                        {
-                            s->ouro -= preco;
-                            c.estado = VAZIO;
-                            s->canteirosComprados++;
-                            char msg[96];
-                            snprintf(msg, sizeof(msg), "Canteiro desbloqueado (-%d ouro)", preco);
-                            adicionarLog(s, msg);
-                        }
-                        continue;
-                    }
-
-                    switch (s->toolbar.selecionada)
-                    {
-                    case ENXADA:
-                        if (c.estado == RESTOS)
-                        {
-                            c.estado = VAZIO;
-                            c.tipoCrop = -1;
-                            c.estagioCrop = 0;
-                        }
-                        break;
-                    case SACOLA:
-                        if (c.estado == VAZIO && !c.seca && s->toolbar.sementeSelecionada >= 0)
-                        {
-                            int sem = s->toolbar.sementeSelecionada;
-
-                            if (!atingiuNivel(s->xp, TABELA_CROPS[sem].nivelDesbloqueio))
-                            {
-                                char msg[96];
-                                snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
-                                         TABELA_CROPS[sem].nome, TABELA_CROPS[sem].nivelDesbloqueio);
-                                adicionarLog(s, msg);
-                                break;
-                            }
-
-                            if (s->inventarioSementes[sem] > 0)
-                            {
-                                s->inventarioSementes[sem]--;
-
-                                c.estado = PLANTADO;
-                                c.tipoCrop = sem;
-                                c.estagioCrop = 1;
-                                c.timestampPlantio = s->tempoJogoMs;
-                                c.temporadaAtual = 1;
-                                c.saude = 100;
-                                c.seca = false;
-                                c.praga = 0;
-                                c.ultimoSorteioEventoMs = s->tempoJogoMs;
-
-                                char msg[96];
-                                snprintf(msg, sizeof(msg), "Plantou %s", TABELA_CROPS[sem].nome);
-                                adicionarLog(s, msg);
-                                incrementarProgressoMissao(s->missoesDiarias, MISSAO_PLANTAR);
-                                tocarSfx(s->sons, s->sons.plantar);
-                            }
-                        }
-                        break;
-                    case MAO:
-                        if (c.estado == MADURO)
-                            acaoColher(s, c);
-                        break;
-                    case REGADOR:
-                        if (c.seca)
-                            acaoRegar(s, c);
-                        break;
-                    case REMOVEDOR:
-                        if (c.praga == 1)
-                            acaoRemoverErva(s, c);
-                        break;
-                    case PESTICIDA:
-                        if (c.praga == 2)
-                            acaoPesticida(s, c);
-                        break;
-                    case CURSOR:
-                        if (c.estado == MADURO)
-                            acaoColher(s, c);
-                        else if (c.estado == RESTOS)
-                        {
-                            c.estado = VAZIO;
-                            c.tipoCrop = -1;
-                            c.estagioCrop = 0;
-                        }
-                        else if (c.seca)
-                            acaoRegar(s, c);
-                        else if (c.praga == 1)
-                            acaoRemoverErva(s, c);
-                        else if (c.praga == 2)
-                            acaoPesticida(s, c);
-                        break;
-                    }
-                }
-            }
+            processarCliqueMundo(s, x, y);
         }
 
         if (evento.type == SDL_KEYDOWN)
@@ -723,8 +467,8 @@ static void processarEventos(GameState *s)
             {
                 if (s->modoColocarItem >= 0)
                     s->modoColocarItem = -1;
-                else if (s->toolbar.painelAberto)
-                    s->toolbar.painelAberto = false;
+                else if (modalAberto(s) != MODAL_NENHUM)
+                    fecharModais(s);
                 else
                     s->solicitouSair = true;
             }
@@ -765,7 +509,8 @@ static void processarEventos(GameState *s)
             }
             if (evento.key.keysym.sym == SDLK_F5)
             {
-                carregarConfig("assets/config.ini");
+                carregarConfig(resolverCaminho("assets/config.ini").c_str());
+                adicionarLog(s, "config.ini recarregado (F5)");
             }
             if (evento.key.keysym.sym == SDLK_F3)
             {
@@ -783,26 +528,22 @@ static void processarEventos(GameState *s)
 
             if (evento.key.keysym.sym == SDLK_l)
             {
-                s->lojaAberta = !s->lojaAberta;
+                bool abrir = !s->lojaAberta;
+                fecharModais(s);
+                s->lojaAberta = abrir;
             }
 
             if (evento.key.keysym.sym == SDLK_d)
             {
-                s->depositoAberto = !s->depositoAberto;
-                if (s->depositoAberto)
-                {
-                    s->toolbar.painelAberto = false;
-                    s->lojaAberta = false;
-                }
+                bool abrir = !s->depositoAberto;
+                fecharModais(s);
+                s->depositoAberto = abrir;
             }
 
             if (evento.key.keysym.sym == SDLK_b)
             {
                 s->modoCompraCanteiro = !s->modoCompraCanteiro;
-
-                s->lojaAberta = false;
-                s->depositoAberto = false;
-                s->toolbar.painelAberto = false;
+                fecharModais(s);
             }
         }
 
@@ -814,6 +555,335 @@ static void processarEventos(GameState *s)
             }
         }
     }
+}
+
+static bool processarCliqueModal(GameState *s, int x, int y)
+{
+    switch (modalAberto(s))
+    {
+    case MODAL_SETTINGS:
+    {
+        int valor = 0;
+        int hit = painelSettingsHitTest(x, y, valor);
+        if (hit == -2 || hit == -1) s->painelSettingsAberto = false;
+        else if (hit == 1) { s->sons.volumeMusica = valor; atualizarVolumeMusica(s->sons); }
+        else if (hit == 2) { s->sons.volumeSfx = valor; }
+        else if (hit == 3) { s->sons.mudo = !s->sons.mudo; atualizarVolumeMusica(s->sons); }
+        return true;
+    }
+    case MODAL_MISSOES:
+    {
+        int hit = painelMissoesHitTest(x, y, s->missoesDiarias);
+        if (hit == -2 || hit == -1)
+        {
+            s->painelMissoesAberto = false;
+        }
+        else if (hit >= 0)
+        {
+            Missao &m = s->missoesDiarias[hit];
+            if (m.concluida && !m.coletada)
+            {
+                s->ouro += m.recompensaOuro;
+                s->moedasVerdes += m.recompensaVerdes;
+                s->xp += m.recompensaXp;
+                ganharPopularidade(s->popularidade, 3);
+                m.coletada = true;
+                char msg[96];
+                snprintf(msg, sizeof(msg), "Missao coletada (+%d ouro, +%d verdes, +%d XP)",
+                         m.recompensaOuro, m.recompensaVerdes, m.recompensaXp);
+                adicionarLog(s, msg);
+                tocarSfx(s->sons, s->sons.missaoCompleta);
+            }
+        }
+        return true;
+    }
+    case MODAL_LOJA:
+    {
+        int hit = lojaHitTest(x, y, *s);
+        if (hit == -2 || hit == -1)
+        {
+            s->lojaAberta = false;
+        }
+        else if (hit >= 100 && hit < 100 + TOTAL_TABS_LOJA)
+        {
+            int tab = hit - 100;
+            bool habilitada = (tab == TAB_SEMENTES) || (tab == TAB_RACOES) || (tab == TAB_DECORACAO);
+            if (habilitada)
+                s->lojaTabAtiva = tab;
+            else
+                adicionarLog(s, "Em breve");
+        }
+        else if (hit >= 200 && hit < 200 + TOTAL_CROPS)
+        {
+            int slot = hit - 200;
+            if (!atingiuNivel(s->xp, TABELA_CROPS[slot].nivelDesbloqueio))
+            {
+                char msg[96];
+                snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
+                         TABELA_CROPS[slot].nome, TABELA_CROPS[slot].nivelDesbloqueio);
+                adicionarLog(s, msg);
+            }
+            else
+            {
+                int preco = TABELA_CROPS[slot].precoCompra;
+                if (s->ouro >= preco)
+                {
+                    s->ouro -= preco;
+                    s->inventarioSementes[slot]++;
+                    char msg[96];
+                    snprintf(msg, sizeof(msg), "Comprou 1 %s (-%d ouro)",
+                             TABELA_CROPS[slot].nome, preco);
+                    adicionarLog(s, msg);
+                    tocarSfx(s->sons, s->sons.comprar);
+                }
+            }
+        }
+        else if (hit >= 300 && hit < 300 + TOTAL_DECORACOES)
+        {
+            int slot = hit - 300;
+            const ItemDecoracao &d = TABELA_DECORACOES[slot];
+            int nivelAtual = nivelDoJogador(s->xp);
+            if (nivelAtual < d.requerLv)
+            {
+                char msg[96];
+                snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d", d.nome, d.requerLv);
+                adicionarLog(s, msg);
+            }
+            else if (s->ouro < d.precoOuro || s->moedasVerdes < d.precoVerdes)
+            {
+                adicionarLog(s, "Sem ouro ou moedas verdes suficientes");
+            }
+            else
+            {
+                s->ouro -= d.precoOuro;
+                s->moedasVerdes -= d.precoVerdes;
+                s->inventarioDecoracoes[slot]++;
+                char msg[96];
+                snprintf(msg, sizeof(msg), "Comprou %s (no inventario)", d.nome);
+                adicionarLog(s, msg);
+                tocarSfx(s->sons, s->sons.comprar);
+            }
+        }
+        else if (hit == 999)
+        {
+            if (s->ouro >= PRECO_RACAO)
+            {
+                s->ouro -= PRECO_RACAO;
+                s->inventarioRacao++;
+                char msg[96];
+                snprintf(msg, sizeof(msg), "Comprou 1 Racao (-%d ouro)", PRECO_RACAO);
+                adicionarLog(s, msg);
+                tocarSfx(s->sons, s->sons.comprar);
+            }
+        }
+        return true;
+    }
+    case MODAL_DEPOSITO:
+    {
+        int resDep = depositoHitTest(x, y);
+        if (resDep == -2 || resDep == -1)
+        {
+            s->depositoAberto = false;
+        }
+        else if (resDep == 100 && s->valorDeposito > 0)
+        {
+            char msg[96];
+            snprintf(msg, sizeof(msg), "Vendeu deposito (+%d ouro)", s->valorDeposito);
+            adicionarLog(s, msg);
+            tocarSfx(s->sons, s->sons.vender);
+            s->ouro += s->valorDeposito;
+            s->valorDeposito = 0;
+            for (int i = 0; i < TOTAL_CROPS; i++)
+                s->inventarioColhidos[i] = 0;
+        }
+        return true;
+    }
+    case MODAL_SEMENTES:
+    {
+        int resultado = painelSementeHitTest(x, y);
+        if (resultado >= 0)
+            s->toolbar.sementeSelecionada = resultado;
+        s->toolbar.painelAberto = false;
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
+static bool processarCliqueMundo(GameState *s, int x, int y)
+{
+    int animalClicado = animalHitTest(s->animais, x, y);
+    if (animalClicado >= 0)
+    {
+        Animal &a = s->animais[animalClicado];
+
+        switch (a.tipo)
+        {
+        case GALINHA: tocarSfx(s->sons, s->sons.galinhaCluck); break;
+        case VACA:    tocarSfx(s->sons, s->sons.vacaMoo);     break;
+        case OVELHA:  tocarSfx(s->sons, s->sons.ovelhaBaa);   break;
+        }
+
+        if (a.produtoPronto)
+        {
+            s->inventarioProdutos[a.tipo]++;
+            s->valorDeposito += precoProduto(a.tipo);
+            a.produtoPronto = false;
+            ganharPopularidade(s->popularidade, 1);
+            char msg[96];
+            snprintf(msg, sizeof(msg), "Recolheu %s (+%d no deposito)",
+                     nomeProduto(a.tipo), precoProduto(a.tipo));
+            adicionarLog(s, msg);
+            return true;
+        }
+
+        if (a.comFome && s->inventarioRacao > 0)
+        {
+            s->inventarioRacao--;
+            a.comFome = false;
+            a.timestampUltimaRefeicao = s->tempoJogoMs;
+            ganharPopularidade(s->popularidade, 1);
+            char msg[96];
+            snprintf(msg, sizeof(msg), "Alimentou %s",
+                     a.tipo == GALINHA ? "galinha" :
+                     a.tipo == VACA    ? "vaca"    : "ovelha");
+            adicionarLog(s, msg);
+            return true;
+        }
+
+        if (a.comFome && s->inventarioRacao == 0)
+        {
+            adicionarLog(s, "Sem racao! Compra na Loja");
+            return true;
+        }
+    }
+
+    if (cachorroHitTest(s->cachorro, x, y))
+    {
+        tocarSfx(s->sons, s->sons.cachorroBark);
+        return true;
+    }
+
+    int slotClicado = toolbarHitTest(x, y);
+    if (slotClicado >= 0)
+    {
+        Ferramenta nova = static_cast<Ferramenta>(slotClicado);
+        if (nova == SACOLA)
+        {
+            bool abrir = !s->toolbar.painelAberto;
+            fecharModais(s);
+            s->toolbar.painelAberto = abrir;
+            s->toolbar.selecionada = SACOLA;
+        }
+        else
+        {
+            s->toolbar.selecionada = nova;
+            s->toolbar.painelAberto = false;
+        }
+        return true;
+    }
+
+    if (s->canteiroHover < 0)
+        return false;
+
+    Canteiro &c = s->canteiros[s->canteiroHover];
+
+    if (s->modoCompraCanteiro && c.estado == BLOQUEADO)
+    {
+        int preco = PRECO_CANTEIRO_BASE + s->canteirosComprados * PRECO_CANTEIRO_INCREMENTO;
+        if (s->ouro >= preco)
+        {
+            s->ouro -= preco;
+            c.estado = VAZIO;
+            s->canteirosComprados++;
+            char msg[96];
+            snprintf(msg, sizeof(msg), "Canteiro desbloqueado (-%d ouro)", preco);
+            adicionarLog(s, msg);
+        }
+        return true;
+    }
+
+    switch (s->toolbar.selecionada)
+    {
+    case ENXADA:
+        if (c.estado == RESTOS)
+        {
+            c.estado = VAZIO;
+            c.tipoCrop = -1;
+            c.estagioCrop = 0;
+        }
+        break;
+    case SACOLA:
+        if (c.estado == VAZIO && !c.seca && s->toolbar.sementeSelecionada >= 0)
+        {
+            int sem = s->toolbar.sementeSelecionada;
+
+            if (!atingiuNivel(s->xp, TABELA_CROPS[sem].nivelDesbloqueio))
+            {
+                char msg[96];
+                snprintf(msg, sizeof(msg), "%s desbloqueia no Nv %d",
+                         TABELA_CROPS[sem].nome, TABELA_CROPS[sem].nivelDesbloqueio);
+                adicionarLog(s, msg);
+                break;
+            }
+
+            if (s->inventarioSementes[sem] > 0)
+            {
+                s->inventarioSementes[sem]--;
+
+                c.estado = PLANTADO;
+                c.tipoCrop = sem;
+                c.estagioCrop = 1;
+                c.timestampPlantio = s->tempoJogoMs;
+                c.temporadaAtual = 1;
+                c.saude = 100;
+                c.seca = false;
+                c.praga = 0;
+                c.ultimoSorteioEventoMs = s->tempoJogoMs;
+
+                char msg[96];
+                snprintf(msg, sizeof(msg), "Plantou %s", TABELA_CROPS[sem].nome);
+                adicionarLog(s, msg);
+                incrementarProgressoMissao(s->missoesDiarias, MISSAO_PLANTAR);
+                tocarSfx(s->sons, s->sons.plantar);
+            }
+        }
+        break;
+    case MAO:
+        if (c.estado == MADURO)
+            acaoColher(s, c);
+        break;
+    case REGADOR:
+        if (c.seca)
+            acaoRegar(s, c);
+        break;
+    case REMOVEDOR:
+        if (c.praga == 1)
+            acaoRemoverErva(s, c);
+        break;
+    case PESTICIDA:
+        if (c.praga == 2)
+            acaoPesticida(s, c);
+        break;
+    case CURSOR:
+        if (c.estado == MADURO)
+            acaoColher(s, c);
+        else if (c.estado == RESTOS)
+        {
+            c.estado = VAZIO;
+            c.tipoCrop = -1;
+            c.estagioCrop = 0;
+        }
+        else if (c.seca)
+            acaoRegar(s, c);
+        else if (c.praga == 1)
+            acaoRemoverErva(s, c);
+        else if (c.praga == 2)
+            acaoPesticida(s, c);
+        break;
+    }
+    return true;
 }
 
 static void atualizarHover(GameState *s)
@@ -886,13 +956,17 @@ static void desenharTileEstado(SDL_Renderer *renderer, const Assets &assets, con
             desenharLosangoPreenchido(renderer, telaX, telaY, 139, 100, 60);
         break;
     case PLANTADO:
-        if (assets.tileTerra)
+        if (c.saude < 50 && assets.tileTerraVermelha)
+            desenharTile(renderer, assets.tileTerraVermelha, telaX, telaY);
+        else if (assets.tileTerra)
             desenharTile(renderer, assets.tileTerra, telaX, telaY);
         else
             desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
         break;
     case MADURO:
-        if (assets.tileTerra)
+        if (c.saude < 50 && assets.tileTerraVermelha)
+            desenharTile(renderer, assets.tileTerraVermelha, telaX, telaY);
+        else if (assets.tileTerra)
             desenharTile(renderer, assets.tileTerra, telaX, telaY);
         else
             desenharLosangoPreenchido(renderer, telaX, telaY, 120, 80, 45);
@@ -1009,6 +1083,8 @@ static void renderizar(GameState *s, SDL_Renderer *renderer)
         SDL_Rect destCasinha = {g_config.casinhaX, g_config.casinhaY, g_config.casinhaW, g_config.casinhaH};
         SDL_RenderCopyEx(renderer, s->assets.casaCachorro, nullptr, &destCasinha, 0.0, nullptr, SDL_FLIP_HORIZONTAL);
     }
+
+    desenharCercaCercado(renderer, s->assets.cerca);
 
     SDL_Texture *sementeIcone = nullptr;
     if (s->toolbar.sementeSelecionada >= 0 && s->toolbar.sementeSelecionada < TOTAL_CROPS)
@@ -1154,18 +1230,20 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
             if (e.type == SDL_QUIT) s->solicitouSair = true;
             if (e.type == SDL_MOUSEMOTION)
             {
-                s->mouseX = e.motion.x;
-                s->mouseY = e.motion.y;
+                aplicarMouseLogico(s, renderer, e.motion.x, e.motion.y);
                 int hit = telaTituloHitTest(s->mouseX, s->mouseY, s->saveExiste);
-                s->botaoTituloHover = (hit >= 100 && hit <= 102) ? hit - 100 : -1;
+                s->botaoTituloHover = (hit >= 100 && hit <= 102) ? hit - 100
+                                      : (hit >= 300 && hit <= 301) ? 10 + (hit - 300)
+                                      : -1;
                 s->rodapeIconeHover = (hit >= 200 && hit <= 202) ? hit - 200 : -1;
             }
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
+                aplicarMouseLogico(s, renderer, e.button.x, e.button.y);
                 if (s->painelSettingsAbertoTitulo)
                 {
                     int valor = 0;
-                    int hit = painelSettingsHitTest(e.button.x, e.button.y, valor);
+                    int hit = painelSettingsHitTest(s->mouseX, s->mouseY, valor);
                     if (hit == -2) s->painelSettingsAbertoTitulo = false;
                     else if (hit == 1) { s->sons.volumeMusica = valor; atualizarVolumeMusica(s->sons); }
                     else if (hit == 2) { s->sons.volumeSfx = valor; }
@@ -1174,7 +1252,7 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
                     continue;
                 }
 
-                int hit = telaTituloHitTest(e.button.x, e.button.y, s->saveExiste);
+                int hit = telaTituloHitTest(s->mouseX, s->mouseY, s->saveExiste);
                 if (hit > 0) tocarSfx(s->sons, s->sons.clickBotao);
 
                 switch (hit)
@@ -1194,25 +1272,19 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
                     s->painelSettingsAbertoTitulo = true;
                     break;
                 case 200:
-                    #ifdef _WIN32
-                        system("start https://github.com");
-                    #else
-                        system("xdg-open https://github.com");
-                    #endif
+                    abrirUrl(URL_GITHUB);
                     break;
                 case 201:
-                    #ifdef _WIN32
-                        system("start https://livepix.gg");
-                    #else
-                        system("xdg-open https://livepix.gg");
-                    #endif
+                    abrirUrl(URL_SITE);
                     break;
                 case 202:
-                    #ifdef _WIN32
-                        system("start https://discord.com");
-                    #else
-                        system("xdg-open https://discord.com");
-                    #endif
+                    abrirUrl(URL_DISCORD);
+                    break;
+                case 300:
+                    s->generoJogador = 0;
+                    break;
+                case 301:
+                    s->generoJogador = 1;
                     break;
                 }
             }
@@ -1237,15 +1309,15 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
 
     s->tempoJogoMs += static_cast<Uint32>(dt * s->velocidadeTempo * 1000.0f);
 
-    if (s->tempoJogoMs - s->timestampUltimoResetMissoes >= RESET_DIARIO_MS)
+    int hoje = diaCivilAtual();
+    if (static_cast<int>(s->timestampUltimoResetMissoes) != hoje)
     {
-        s->timestampUltimoResetMissoes = s->tempoJogoMs;
+        s->timestampUltimoResetMissoes = static_cast<Uint32>(hoje);
         sortearMissoesDiarias(s->missoesDiarias);
         adicionarLog(s, "Novas missoes diarias!");
     }
 
-    int diaAtual = static_cast<int>(s->tempoJogoMs / RESET_DIARIO_MS);
-    if (diaAtual != s->ultimoDiaRecompensa)
+    if (hoje != s->ultimoDiaRecompensa)
         s->recompensaDisponivel = true;
 
     {
@@ -1279,7 +1351,7 @@ GAME_API void game_frame(GameState *s, SDL_Renderer *renderer, float dt)
         }
     }
 
-    processarEventos(s);
+    processarEventos(s, renderer);
     atualizarAnimacoes(s->toolbar, dt);
     atualizarHover(s);
     atualizarCrescimento(s);

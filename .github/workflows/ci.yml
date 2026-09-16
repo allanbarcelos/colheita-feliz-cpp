@@ -1,0 +1,169 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+permissions:
+  contents: read
+
+env:
+  CMAKE_BUILD_TYPE: Release
+
+jobs:
+  test-linux:
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            nlohmann-json3-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-SDL2_image
+            mingw-w64-ucrt-x86_64-SDL2_mixer
+            mingw-w64-ucrt-x86_64-SDL2_ttf
+            mingw-w64-ucrt-x86_64-nlohmann-json
+            mingw-w64-ucrt-x86_64-ntldd
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        run: bash scripts/package-windows.sh build staging/FazendaDosSonhos
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          $ver = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $env:GITHUB_SHA.Substring(0, 7) }
+          Compress-Archive -Path staging/FazendaDosSonhos -DestinationPath "Fazenda-dos-Sonhos-$ver-windows.zip" -Force
+          Get-Item "Fazenda-dos-Sonhos-$ver-windows.zip" | Format-List Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: Fazenda-dos-Sonhos-*-windows.zip
+          if-no-files-found: error
+
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja sdl2 sdl2_image sdl2_mixer sdl2_ttf nlohmann-json
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            VERSION="${GITHUB_SHA::7}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          bash scripts/package-macos.sh build staging/FazendaDosSonhos
+          python3 - "$VERSION" <<'PY'
+          import shutil, sys
+          ver = sys.argv[1]
+          shutil.make_archive(f"Fazenda-dos-Sonhos-{ver}-macos", "zip", "staging", "FazendaDosSonhos")
+          print("zip ok")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: Fazenda-dos-Sonhos-*-macos.zip
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: [test-linux, build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          name: Fazenda dos Sonhos ${{ github.ref_name }}
+          body: |
+            Builds oficiais desktop (offline).
+
+            | Arquivo | Plataforma |
+            |---|---|
+            | `Fazenda-dos-Sonhos-${{ github.ref_name }}-windows.zip` | Windows 64-bit (MinGW UCRT) |
+            | `Fazenda-dos-Sonhos-${{ github.ref_name }}-macos.zip` | macOS (Apple Silicon / runner atual) |
+
+            Extraia o zip e rode `FazendaDosSonhos.exe` (Windows) ou `Jogar.command` / `FazendaDosSonhos` (macOS).
+            Não precisa instalar runtime — as DLLs/dylibs vão junto.
+
+            Save: `%APPDATA%\FazendaDosSonhos` no Windows, `~/Library/Application Support/FazendaDosSonhos` no macOS.

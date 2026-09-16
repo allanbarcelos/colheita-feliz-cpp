@@ -107,6 +107,10 @@ inline void desenharHudEsquerdo(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Fon
     {
         SDL_Rect destAvatar = {avatarX, avatarY, avatarTam, avatarTam};
         SDL_RenderCopy(renderer, avatar, nullptr, &destAvatar);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 218, 165, 32, 200);
+        desenharContornoArredondado(renderer, avatarX - 2, avatarY - 2, avatarTam + 4, avatarTam + 4, 10);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
     int nivel = nivelDoJogador(xp);
@@ -226,6 +230,16 @@ inline void desenharHudDireito(SDL_Renderer *renderer, TTF_Font *fontePequena,
         desenharBotaoHud(renderer, fontePequena, h.botoes[i],
                          nomeBotaoHud(i), i, i == botaoHover);
     }
+}
+
+inline bool hudAvatarHitTest(int mouseX, int mouseY)
+{
+    const int avatarX = 16 + 14;
+    const int avatarY = 16 + (96 - 68) / 2;
+    const int avatarTam = 68;
+    int t = CLICK_TOLERANCIA;
+    return mouseX >= avatarX - t && mouseX <= avatarX + avatarTam + t &&
+           mouseY >= avatarY - t && mouseY <= avatarY + avatarTam + t;
 }
 
 inline int hudDireitoHitTest(int mouseX, int mouseY)

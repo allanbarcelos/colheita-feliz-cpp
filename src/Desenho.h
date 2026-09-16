@@ -111,6 +111,52 @@ inline void desenharSombraTile(SDL_Renderer *renderer, int centerX, int centerY)
     desenharLosangoPreenchidoAlfa(renderer, centerX + 3, centerY + 5, 0, 0, 0, 55, TILE_ALTURA, TILE_LARGURA);
 }
 
+inline void janelaParaLogico(SDL_Renderer *renderer, int windowX, int windowY, int *logicoX, int *logicoY)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    float fx = static_cast<float>(windowX);
+    float fy = static_cast<float>(windowY);
+    SDL_RenderWindowToLogical(renderer, windowX, windowY, &fx, &fy);
+    *logicoX = static_cast<int>(fx);
+    *logicoY = static_cast<int>(fy);
+#else
+    (void)renderer;
+    *logicoX = windowX;
+    *logicoY = windowY;
+#endif
+}
+
+inline void desenharCercaCercado(SDL_Renderer *renderer, SDL_Texture *cerca)
+{
+    if (!cerca)
+        return;
+
+    int pts[4][2] = {
+        {CERCADO_CENTRO_X, CERCADO_CENTRO_Y - CERCADO_RAIO_Y},
+        {CERCADO_CENTRO_X + CERCADO_RAIO_X, CERCADO_CENTRO_Y},
+        {CERCADO_CENTRO_X, CERCADO_CENTRO_Y + CERCADO_RAIO_Y},
+        {CERCADO_CENTRO_X - CERCADO_RAIO_X, CERCADO_CENTRO_Y},
+    };
+
+    const int segsPorAresta = 5;
+    const int destW = 56;
+    const int destH = 42;
+
+    for (int e = 0; e < 4; e++)
+    {
+        int x0 = pts[e][0], y0 = pts[e][1];
+        int x1 = pts[(e + 1) % 4][0], y1 = pts[(e + 1) % 4][1];
+        for (int s = 0; s < segsPorAresta; s++)
+        {
+            float t = (s + 0.5f) / static_cast<float>(segsPorAresta);
+            int x = static_cast<int>(x0 + (x1 - x0) * t);
+            int y = static_cast<int>(y0 + (y1 - y0) * t);
+            SDL_Rect dest = {x - destW / 2, y - destH + 8, destW, destH};
+            SDL_RenderCopy(renderer, cerca, nullptr, &dest);
+        }
+    }
+}
+
 inline void desenharSombraSprite(SDL_Renderer *renderer, int baseX, int baseY, int largura)
 {
     int rx = largura / 3;

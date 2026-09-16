@@ -17,7 +17,7 @@
 
 | Plataforma | Como |
 |------------|------|
-| **🖥️ Desktop (Windows)** | Baixa o `.zip` em [Releases → v1.0.0-desktop](https://github.com/harlleybastos/colheita-feliz-cpp/releases/tag/v1.0.0-desktop) → descompacta → executa `FazendaDosSonhos.exe`. Sem instalação, sem dependência. |
+| **🖥️ Desktop (Windows / macOS)** | Baixa o `.zip` em [Releases](https://github.com/harlleybastos/colheita-feliz-cpp/releases) → descompacta → Windows: `FazendaDosSonhos.exe` · macOS: `Jogar.command`. Sem instalação. Um `git tag vX.Y.Z && git push --tags` dispara o build + release no GitHub Actions. |
 | **🌐 Browser (qualquer device)** | Acessa [**fazendadossonhos.app**](https://fazendadossonhos.app) — login Google, joga solo ou com amigos via multiplayer real-time. |
 
 ---
@@ -89,7 +89,7 @@ ColheitaFeliz/
 │   ├── TelaTitulo.h      ← logo / tips / botões
 │   └── app.rc            ← Windows resource (icon)
 ├── assets/
-│   ├── sprites/          ← 177 PNGs (tiles, crops, animais, UI, decorações)
+│   ├── sprites/          ← 165 PNGs (tiles, crops, animais, UI, decorações)
 │   ├── sounds/           ← 18 SFX + música tema
 │   ├── backgrounds/
 │   └── fonts/            ← Nunito (Google Fonts)
@@ -158,7 +158,7 @@ git checkout ep01-setup-sdl2
 
 ## 🎨 Assets
 
-Sprites gerados com **Google Gemini (Nano Banana 2)** + ajustes manuais em **Adobe Photoshop**. 177 sprites totais — tiles isométricos, 15 plantas em 5 estágios cada, animais (galinha/vaca/ovelha/cachorro com 2-3 poses cada), decorações fixas (casa, casinha do cachorro, cerca, espantalho, banco, churrasqueira), UI elements.
+Sprites gerados com **Google Gemini (Nano Banana 2)** + ajustes manuais em **Adobe Photoshop**. 165 PNGs — tiles isométricos, 15 plantas em 5 estágios cada, animais (galinha/vaca/ovelha/cachorro com 2-3 poses cada), decorações (casa, casinha do cachorro, cerca, espantalho, banco, churrasqueira, moinho, fonte, etc.), UI elements.
 
 Áudio: 18 SFX (cá-ching, swoosh, bip, click) + 1 música tema. Todos os assets ficam em `assets/`.
 

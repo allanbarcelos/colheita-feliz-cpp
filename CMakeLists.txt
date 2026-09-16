@@ -6,6 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan (non-MSVC)" OFF)
+if(ENABLE_SANITIZERS AND NOT MSVC)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 find_package(SDL2_ttf REQUIRED)
@@ -58,3 +64,15 @@ if(UNIX)
 endif()
 
 add_dependencies(FazendaDosSonhos game)
+
+enable_testing()
+add_executable(test_logic tests/test_logic.cpp)
+target_include_directories(test_logic PRIVATE src)
+target_link_libraries(test_logic PRIVATE
+    SDL2::SDL2
+    SDL2_image::SDL2_image
+    SDL2_ttf::SDL2_ttf
+    SDL2_mixer::SDL2_mixer
+    nlohmann_json::nlohmann_json
+)
+add_test(NAME logic COMMAND test_logic)

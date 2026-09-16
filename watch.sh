@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Hot-reload watcher: rebuilda a lib do jogo quando qualquer src/*.cpp ou src/*.h muda.
-# O executável detecta o novo mtime e recarrega sozinho (Windows: game.dll, Linux: game.so).
+# O executável detecta o novo mtime e recarrega sozinho (Windows: game.dll, Linux: game.so, macOS: game.dylib).
 
 set -u
 
@@ -11,9 +11,20 @@ INTERVALO=0.5
 
 ultimo_hash=""
 
+hash_stdin() {
+    if command -v md5sum >/dev/null 2>&1; then
+        md5sum | awk '{print $1}'
+    else
+        md5 -q
+    fi
+}
+
 calcular_hash() {
-    # Hash dos mtimes dos arquivos relevantes (evita rebuild se nada mudou).
-    find "$PROJETO_DIR/src" -type f \( -name "*.cpp" -o -name "*.h" \) -printf "%T@ %p\n" 2>/dev/null | md5sum | awk '{print $1}'
+    if find "$PROJETO_DIR/src" -type f \( -name "*.cpp" -o -name "*.h" \) -printf "%T@ %p\n" >/dev/null 2>&1; then
+        find "$PROJETO_DIR/src" -type f \( -name "*.cpp" -o -name "*.h" \) -printf "%T@ %p\n" | hash_stdin
+    else
+        find "$PROJETO_DIR/src" -type f \( -name "*.cpp" -o -name "*.h" \) -exec stat -f "%m %N" {} \; | hash_stdin
+    fi
 }
 
 echo "[watch] monitorando src/ — ctrl+c pra sair"

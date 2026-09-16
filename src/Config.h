@@ -5,10 +5,12 @@
 #include <iostream>
 #include <string>
 
+#include "Constantes.h"
+
 struct ConfigRuntime
 {
-    int offsetX = 500;
-    int offsetY = 420;
+    int offsetX = OFFSET_X;
+    int offsetY = OFFSET_Y;
 
     int casaX = 580, casaY = 30, casaW = 200, casaH = 200;
     int casinhaX = 760, casinhaY = 180, casinhaW = 80, casinhaH = 80;

@@ -4,13 +4,82 @@
 #include <SDL2/SDL_image.h>
 
 #include <iostream>
+#include <string>
 
 #include "Tipos.h"
 
+inline bool arquivoExiste(const char *caminho)
+{
+    SDL_RWops *rw = SDL_RWFromFile(caminho, "rb");
+    if (!rw)
+        return false;
+    SDL_RWclose(rw);
+    return true;
+}
+
+inline std::string resolverCaminho(const char *relativo)
+{
+    if (!relativo || !relativo[0])
+        return {};
+
+    if (arquivoExiste(relativo))
+        return relativo;
+
+    char *base = SDL_GetBasePath();
+    if (base)
+    {
+        std::string aoLadoDoExe = std::string(base) + relativo;
+        if (arquivoExiste(aoLadoDoExe.c_str()))
+        {
+            SDL_free(base);
+            return aoLadoDoExe;
+        }
+
+        std::string umNivelAcima = std::string(base) + "../" + relativo;
+        if (arquivoExiste(umNivelAcima.c_str()))
+        {
+            SDL_free(base);
+            return umNivelAcima;
+        }
+
+        SDL_free(base);
+        return aoLadoDoExe;
+    }
+
+    return relativo;
+}
+
+inline std::string resolverCaminhoSeExistir(const char *relativo)
+{
+    if (!relativo || !relativo[0])
+        return {};
+
+    if (arquivoExiste(relativo))
+        return relativo;
+
+    char *base = SDL_GetBasePath();
+    if (!base)
+        return {};
+
+    std::string aoLadoDoExe = std::string(base) + relativo;
+    if (arquivoExiste(aoLadoDoExe.c_str()))
+    {
+        SDL_free(base);
+        return aoLadoDoExe;
+    }
+
+    std::string umNivelAcima = std::string(base) + "../" + relativo;
+    SDL_free(base);
+    if (arquivoExiste(umNivelAcima.c_str()))
+        return umNivelAcima;
+
+    return {};
+}
+
 inline SDL_Texture *carregarTextura(SDL_Renderer *renderer, const char *caminho)
 {
-
-    SDL_Surface *superficie = IMG_Load(caminho);
+    std::string resolvido = resolverCaminho(caminho);
+    SDL_Surface *superficie = IMG_Load(resolvido.c_str());
 
     if (!superficie)
     {
@@ -29,6 +98,13 @@ inline SDL_Texture *carregarTextura(SDL_Renderer *renderer, const char *caminho)
     }
 
     return textura;
+}
+
+inline SDL_Texture *carregarTexturaOpcional(SDL_Renderer *renderer, const char *caminho)
+{
+    if (resolverCaminhoSeExistir(caminho).empty())
+        return nullptr;
+    return carregarTextura(renderer, caminho);
 }
 
 inline Assets carregarTodosAssets(SDL_Renderer *renderer)

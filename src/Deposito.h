@@ -23,12 +23,10 @@ inline void desenharDeposito(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *
 
     int contentY = LOJA_Y + 56 + 16;
 
-    for (int i = 0; i < 10 && i < TOTAL_CROPS; i++)
+    for (int i = 0; i < TOTAL_CROPS; i++)
     {
-        int col = i % 5;
-        int lin = i / 5;
-        int slotX = LOJA_X + 16 + col * (204 + 12);
-        int slotY = contentY + lin * (280 + 12);
+        int slotX, slotY;
+        slotCardGrade(i, 5, LOJA_X + 16, contentY, CARD_W, CARD_H_COMPACTA, CARD_GAP, slotX, slotY);
 
         const DadosCrop &d = TABELA_CROPS[i];
         char info[32];
@@ -37,7 +35,7 @@ inline void desenharDeposito(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *
                           ca.estagios[i][TOTAL_ESTAGIOS - 1], d.nome, info,
                           d.precoVenda, h.iconeOuro,
                           false, 0,
-                          slotX, slotY, "Maduro");
+                          slotX, slotY, "Maduro", false, CARD_H_COMPACTA);
     }
 
     int btnW = 460;

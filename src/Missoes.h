@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include "Constantes.h"
 
 enum TipoMissao
@@ -28,6 +29,11 @@ struct Missao
 };
 
 static constexpr Uint32 RESET_DIARIO_MS = 24u * 3600u * 1000u;
+
+inline int diaCivilAtual()
+{
+    return static_cast<int>(time(nullptr) / 86400);
+}
 
 inline Missao sortearMissao(int dificuldade)
 {

@@ -1,7 +1,11 @@
 #pragma once
 
+#include <SDL2/SDL.h>
+
 static constexpr int LARGURA_JANELA = 1600;
 static constexpr int ALTURA_JANELA = 900;
+static constexpr int JANELA_MIN_LARGURA = 960;
+static constexpr int JANELA_MIN_ALTURA = 540;
 static constexpr int FPS_ALVO = 60;
 static constexpr int TEMPO_FRAME_MS = 1000 / FPS_ALVO;
 
@@ -46,8 +50,8 @@ static constexpr int PAINEL_ALTURA = PAINEL_TITULO_ALTURA + PAINEL_LINHAS_SEMENT
 static constexpr int PAINEL_X = (LARGURA_JANELA - PAINEL_LARGURA) / 2;
 static constexpr int PAINEL_Y = (ALTURA_JANELA - PAINEL_ALTURA) / 2;
 
-static constexpr int VELOCIDADE_TEMPO_NORMAL = 1.0f;
-static constexpr int VELOCIDADE_TEMPO_DEBUG = 60.0f;
+static constexpr float VELOCIDADE_TEMPO_NORMAL = 1.0f;
+static constexpr float VELOCIDADE_TEMPO_DEBUG = 60.0f;
 
 static constexpr Uint32 INTERVALO_SORTEIO_EVENTO_MS = 20000;
 static constexpr int CHANCE_EVENTO_PCT = 25;

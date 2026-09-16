@@ -135,16 +135,31 @@ inline int tabsHitTest(int mouseX, int mouseY, int totalTabs, int x, int y, int 
     return idx;
 }
 
+static constexpr int CARD_W = 204;
+static constexpr int CARD_H = 280;
+static constexpr int CARD_H_COMPACTA = 176;
+static constexpr int CARD_GAP = 12;
+
+inline void slotCardGrade(int indice, int colunas, int originX, int originY,
+                          int cardW, int cardH, int gap, int &sx, int &sy)
+{
+    int col = indice % colunas;
+    int lin = indice / colunas;
+    sx = originX + col * (cardW + gap);
+    sy = originY + lin * (cardH + gap);
+}
+
 inline int desenharCardItem(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *fontePequena,
                              SDL_Texture *sprite, const char *nome, const char *infoLinha,
                              int preco, SDL_Texture *iconeMoeda,
                              bool podeComprar, int requerLv,
                              int slotX, int slotY,
                              const char *labelBotao = "Comprar",
-                             bool hover = false)
+                             bool hover = false,
+                             int cardH = CARD_H)
 {
-    const int cardW = 204;
-    const int cardH = 280;
+    const int cardW = CARD_W;
+    const bool compacta = cardH < 240;
 
     if (hover)
     {
@@ -159,9 +174,9 @@ inline int desenharCardItem(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *f
 
     if (sprite)
     {
-        int boxTam = hover ? 104 : 96;
+        int boxTam = compacta ? (hover ? 64 : 56) : (hover ? 104 : 96);
         int boxX = slotX + (cardW - boxTam) / 2;
-        int boxY = slotY + 16;
+        int boxY = slotY + (compacta ? 6 : 16);
         int srcW = 0, srcH = 0;
         SDL_QueryTexture(sprite, nullptr, nullptr, &srcW, &srcH);
         int displayW = boxTam, displayH = boxTam;
@@ -185,22 +200,27 @@ inline int desenharCardItem(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *f
         SDL_RenderCopy(renderer, sprite, nullptr, &destSprite);
     }
 
-    desenharTexto(renderer, fonte, nome, slotX + cardW / 2, slotY + 134, COR_TEXTO_DARK, true);
+    int nomeY = slotY + (compacta ? 70 : 134);
+    int infoY = slotY + (compacta ? 86 : 152);
+    int precoIconeY = slotY + (compacta ? 100 : 184);
+    int precoTextoY = slotY + (compacta ? 104 : 188);
+
+    desenharTexto(renderer, compacta ? fontePequena : fonte, nome, slotX + cardW / 2, nomeY, COR_TEXTO_DARK, true);
 
     if (infoLinha)
-        desenharTexto(renderer, fontePequena, infoLinha, slotX + cardW / 2, slotY + 152, COR_TEXTO_DARK, true);
+        desenharTexto(renderer, fontePequena, infoLinha, slotX + cardW / 2, infoY, COR_TEXTO_DARK, true);
 
     if (iconeMoeda)
     {
-        SDL_Rect destIcone = {slotX + 50, slotY + 184, 22, 22};
+        SDL_Rect destIcone = {slotX + 50, precoIconeY, compacta ? 16 : 22, compacta ? 16 : 22};
         SDL_RenderCopy(renderer, iconeMoeda, nullptr, &destIcone);
     }
     char bufPreco[16];
     snprintf(bufPreco, sizeof(bufPreco), "%d", preco);
-    desenharTexto(renderer, fonte, bufPreco, slotX + 80, slotY + 188, COR_TEXTO_PRECO, false);
+    desenharTexto(renderer, compacta ? fontePequena : fonte, bufPreco, slotX + 80, precoTextoY, COR_TEXTO_PRECO, false);
 
-    int btnY = slotY + cardH - 50;
-    int btnH = 36;
+    int btnH = compacta ? 26 : 36;
+    int btnY = slotY + cardH - (compacta ? 34 : 50);
 
     if (requerLv > 0)
     {
@@ -225,12 +245,12 @@ inline int desenharCardItem(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *f
     return btnY;
 }
 
-inline bool cardCompraClicado(int mouseX, int mouseY, int slotX, int slotY)
+inline bool cardCompraClicado(int mouseX, int mouseY, int slotX, int slotY, int cardH = CARD_H)
 {
-    const int cardW = 204;
-    const int cardH = 280;
-    int btnY = slotY + cardH - 50;
-    int btnH = 36;
+    const int cardW = CARD_W;
+    const bool compacta = cardH < 240;
+    int btnH = compacta ? 26 : 36;
+    int btnY = slotY + cardH - (compacta ? 34 : 50);
     int t = CLICK_TOLERANCIA;
     return mouseX >= slotX + 16 - t && mouseX <= slotX + cardW - 16 + t &&
            mouseY >= btnY - t && mouseY <= btnY + btnH + t;

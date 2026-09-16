@@ -3,10 +3,35 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include "Constantes.h"
 #include "Desenho.h"
 #include "Toolbar.h"
 #include "GameState.h"
+
+inline void abrirUrl(const char *url)
+{
+    if (!url || !url[0])
+        return;
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    if (SDL_OpenURL(url) == 0)
+        return;
+#endif
+    char cmd[512];
+#ifdef _WIN32
+    snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", url);
+#elif defined(__APPLE__)
+    snprintf(cmd, sizeof(cmd), "open '%s'", url);
+#else
+    snprintf(cmd, sizeof(cmd), "xdg-open '%s'", url);
+#endif
+    (void)system(cmd);
+}
+
+static const char *URL_GITHUB  = "https://github.com/harlleybastos/colheita-feliz-cpp";
+static const char *URL_SITE    = "https://harlleybastos.com.br";
+static const char *URL_DISCORD = "https://discord.gg/tHMnVajhq5";
 
 // NOVO (fase 11): glow radial procedural — substitui PNG.
 // Cria textura RGBA com falloff quadratico (gaussian-like) do centro pra borda.
@@ -62,7 +87,16 @@ static constexpr int TOTAL_TIPS = sizeof(TIPS) / sizeof(TIPS[0]);
 
 inline SDL_Rect rectBotaoTitulo(int idx)
 {
-    return SDL_Rect{(LARGURA_JANELA - 360) / 2, 480 + idx * 86, 360, 70};
+    return SDL_Rect{(LARGURA_JANELA - 360) / 2, 530 + idx * 80, 360, 70};
+}
+
+inline SDL_Rect rectAvatarTitulo(int idx)
+{
+    int tam = 72;
+    int gap = 28;
+    int totalW = tam * 2 + gap;
+    int x0 = (LARGURA_JANELA - totalW) / 2;
+    return SDL_Rect{x0 + idx * (tam + gap), 438, tam, tam};
 }
 
 inline SDL_Rect rectIconeRodape(int idx)
@@ -223,7 +257,7 @@ inline void desenharTelaTitulo(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font
         int padY = 10;
         int pillW = textW + padX * 2;
         int pillH = textH + padY * 2;
-        int pillY = 420;
+        int pillY = 368;
         SDL_Rect pill = {(LARGURA_JANELA - pillW) / 2, pillY, pillW, pillH};
 
         // 1. Drop shadow
@@ -243,6 +277,35 @@ inline void desenharTelaTitulo(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font
         // 4. Texto cream-yellow centrado
         SDL_Color corTip = {255, 245, 220, 255};
         desenharTextoComContorno(renderer, fontePequena, buffer, LARGURA_JANELA / 2, pillY + pillH / 2, corTip, true);
+    }
+
+    {
+        SDL_Color corLbl = {255, 245, 220, 255};
+        desenharTextoComContorno(renderer, fontePequena, "Escolha o avatar",
+                                  LARGURA_JANELA / 2, 422, corLbl, true);
+        SDL_Texture *avatares[2] = {s.hudAssets.avatarMasculino, s.hudAssets.avatarFeminino};
+        for (int i = 0; i < 2; i++)
+        {
+            SDL_Rect r = rectAvatarTitulo(i);
+            bool sel = (s.generoJogador == i);
+            bool hover = (s.botaoTituloHover == 10 + i);
+            if (hover) { r.x -= 2; r.y -= 2; r.w += 4; r.h += 4; }
+
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 100);
+            desenharRetanguloArredondado(renderer, r.x + 3, r.y + 4, r.w, r.h, 14);
+            SDL_SetRenderDrawColor(renderer, sel ? 218 : 60, sel ? 165 : 38, sel ? 32 : 18, 255);
+            desenharRetanguloArredondado(renderer, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 16);
+            SDL_SetRenderDrawColor(renderer, 42, 31, 20, 240);
+            desenharRetanguloArredondado(renderer, r.x, r.y, r.w, r.h, 14);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+
+            if (avatares[i])
+            {
+                SDL_Rect dest = {r.x + 4, r.y + 4, r.w - 8, r.h - 8};
+                SDL_RenderCopy(renderer, avatares[i], nullptr, &dest);
+            }
+        }
     }
 
     SDL_Texture *iconesRodape[3] = {s.tituloIconeGithub, s.tituloIconeLivepix, s.tituloIconeDiscord};
@@ -300,6 +363,13 @@ inline int telaTituloHitTest(int mouseX, int mouseY, bool saveExiste)
             if (i == 1 && !saveExiste) return -1;
             return 100 + i;
         }
+    }
+    for (int i = 0; i < 2; i++)
+    {
+        SDL_Rect av = rectAvatarTitulo(i);
+        if (mouseX >= av.x - t && mouseX <= av.x + av.w + t &&
+            mouseY >= av.y - t && mouseY <= av.y + av.h + t)
+            return 300 + i;
     }
     for (int i = 0; i < 3; i++)
     {

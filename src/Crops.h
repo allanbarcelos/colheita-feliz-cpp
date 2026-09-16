@@ -5,6 +5,8 @@
 #include "Tipos.h"
 #include "Assets.h"
 #include "Player.h"
+#include "Desenho.h"
+#include "Toolbar.h"
 #include <SDL2/SDL_ttf.h>
 
 struct DadosCrop
@@ -34,6 +36,13 @@ static const DadosCrop TABELA_CROPS[TOTAL_CROPS] = {
     {"Uva",       "uva",       70, 160, 3, 110, 8},
     {"Pepino",    "pepino",    25, 52,  2, 70,  2},
     {"Pimentão",  "pimentao",  60, 140, 2, 100, 7}};
+
+inline int xpPorColheita(int tipoCrop)
+{
+    if (tipoCrop < 0 || tipoCrop >= TOTAL_CROPS)
+        return 5;
+    return 5 + TABELA_CROPS[tipoCrop].precoVenda / 10;
+}
 
 static constexpr int CROP_TAMANHOS[TOTAL_ESTAGIOS] = {
     36,

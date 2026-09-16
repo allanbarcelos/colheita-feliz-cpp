@@ -40,3 +40,12 @@ inline bool atingiuNivel(int xpTotal, int nivelMinimo)
 {
     return nivelDoJogador(xpTotal) >= nivelMinimo;
 }
+
+inline void ganharPopularidade(int &popularidade, int quantidade)
+{
+    popularidade += quantidade;
+    if (popularidade > POPULARIDADE_MAX)
+        popularidade = POPULARIDADE_MAX;
+    if (popularidade < 0)
+        popularidade = 0;
+}

@@ -225,7 +225,9 @@ int main(int argc, char *argv[])
     SDL_Window *janela = SDL_CreateWindow(
         "Fazenda dos Sonhos",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        LARGURA_JANELA, ALTURA_JANELA, 0);
+        LARGURA_JANELA, ALTURA_JANELA,
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_SetWindowMinimumSize(janela, JANELA_MIN_LARGURA, JANELA_MIN_ALTURA);
 
     SDL_Surface *iconeJanela = IMG_Load("assets/sprites/ui/app_icon_mark.png");
     if (iconeJanela)
@@ -243,6 +245,9 @@ int main(int argc, char *argv[])
         printf("[platform] erro ao criar renderer: %s\n", SDL_GetError());
         return 1;
     }
+
+    SDL_RenderSetLogicalSize(renderer, LARGURA_JANELA, ALTURA_JANELA);
+    SDL_RenderSetIntegerScale(renderer, SDL_FALSE);
 
     GameState estado = {};
     GameCode  gc     = {};
@@ -295,10 +300,7 @@ int main(int argc, char *argv[])
     }
 
     descarregarGameCode(&gc);
-
-    if (estado.fonteTooltip) TTF_CloseFont(estado.fonteTooltip);
-    if (estado.fontePequena)  TTF_CloseFont(estado.fontePequena);
-    if (estado.fonte)         TTF_CloseFont(estado.fonte);
+    liberarGameState(estado);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(janela);

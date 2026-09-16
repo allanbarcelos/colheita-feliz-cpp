@@ -95,12 +95,10 @@ inline void desenharLoja(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *font
 
     if (s.lojaTabAtiva == TAB_SEMENTES)
     {
-        for (int i = 0; i < 10 && i < TOTAL_CROPS; i++)
+        for (int i = 0; i < TOTAL_CROPS; i++)
         {
-            int col = i % 5;
-            int lin = i / 5;
-            int slotX = LOJA_X + 16 + col * (204 + 12);
-            int slotY = contentY + lin * (280 + 12);
+            int slotX, slotY;
+            slotCardGrade(i, 5, LOJA_X + 16, contentY, CARD_W, CARD_H_COMPACTA, CARD_GAP, slotX, slotY);
 
             const DadosCrop &d = TABELA_CROPS[i];
             int nivelAtual = nivelDoJogador(s.xp);
@@ -109,13 +107,13 @@ inline void desenharLoja(SDL_Renderer *renderer, TTF_Font *fonte, TTF_Font *font
 
             char rendeBuf[32];
             snprintf(rendeBuf, sizeof(rendeBuf), "Rende: %d", d.precoVenda);
-            bool hover = (s.mouseX >= slotX && s.mouseX <= slotX + 204 &&
-                          s.mouseY >= slotY && s.mouseY <= slotY + 280);
+            bool hover = (s.mouseX >= slotX && s.mouseX <= slotX + CARD_W &&
+                          s.mouseY >= slotY && s.mouseY <= slotY + CARD_H_COMPACTA);
             desenharCardItem(renderer, fonte, fontePequena,
                               ca.sementes[i], d.nome, rendeBuf,
                               d.precoCompra, h.iconeOuro,
                               podeComprar, requerLv,
-                              slotX, slotY, "Comprar", hover);
+                              slotX, slotY, "Comprar", hover, CARD_H_COMPACTA);
         }
     }
     else if (s.lojaTabAtiva == TAB_DECORACAO)
@@ -156,13 +154,11 @@ inline int lojaHitTest(int mouseX, int mouseY, const GameState &s)
 
     if (s.lojaTabAtiva == TAB_SEMENTES)
     {
-        for (int i = 0; i < 10 && i < TOTAL_CROPS; i++)
+        for (int i = 0; i < TOTAL_CROPS; i++)
         {
-            int col = i % 5;
-            int lin = i / 5;
-            int slotX = LOJA_X + 16 + col * (204 + 12);
-            int slotY = contentY + lin * (280 + 12);
-            if (cardCompraClicado(mouseX, mouseY, slotX, slotY))
+            int slotX, slotY;
+            slotCardGrade(i, 5, LOJA_X + 16, contentY, CARD_W, CARD_H_COMPACTA, CARD_GAP, slotX, slotY);
+            if (cardCompraClicado(mouseX, mouseY, slotX, slotY, CARD_H_COMPACTA))
                 return 200 + i;
         }
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <string>
 #include "Constantes.h"
 #include "Assets.h"
 
@@ -124,7 +125,8 @@ inline DecoracaoAssets carregarDecoracaoAssets(SDL_Renderer *renderer)
     for (int i = 0; i < TOTAL_DECORACOES; i++)
     {
         snprintf(caminho, sizeof(caminho), "assets/sprites/buildings/%s.png", TABELA_DECORACOES[i].nomeArquivo);
-        SDL_Surface *surf = IMG_Load(caminho);
+        std::string resolvido = resolverCaminho(caminho);
+        SDL_Surface *surf = IMG_Load(resolvido.c_str());
         if (surf)
         {
             d.sprites[i] = SDL_CreateTextureFromSurface(renderer, surf);
@@ -133,7 +135,7 @@ inline DecoracaoAssets carregarDecoracaoAssets(SDL_Renderer *renderer)
             SDL_FreeSurface(surf);
         }
         snprintf(caminho, sizeof(caminho), "assets/sprites/buildings/%s-base1.png", TABELA_DECORACOES[i].nomeArquivo);
-        d.previews[i] = carregarTextura(renderer, caminho);
+        d.previews[i] = carregarTexturaOpcional(renderer, caminho);
     }
     return d;
 }

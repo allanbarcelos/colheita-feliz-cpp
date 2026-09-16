@@ -2,6 +2,8 @@
 
 #include <SDL2/SDL_mixer.h>
 #include <iostream>
+#include <string>
+#include "Assets.h"
 
 struct Sons
 {
@@ -32,7 +34,8 @@ struct Sons
 
 inline Mix_Chunk *carregarSfx(const char *caminho)
 {
-    Mix_Chunk *c = Mix_LoadWAV(caminho);
+    std::string resolvido = resolverCaminho(caminho);
+    Mix_Chunk *c = Mix_LoadWAV(resolvido.c_str());
     if (!c) std::cout << "[audio] falha SFX " << caminho << ": " << Mix_GetError() << std::endl;
     return c;
 }
@@ -64,7 +67,7 @@ inline void carregarSons(Sons &s)
     s.ovelhaBaa       = carregarSfx("assets/sounds/sheep.wav");
     s.cachorroBark    = carregarSfx("assets/sounds/dog_bark.wav");
 
-    s.musicaFazenda = Mix_LoadMUS("assets/sounds/farm_loop.mp3");
+    s.musicaFazenda = Mix_LoadMUS(resolverCaminho("assets/sounds/farm_loop.mp3").c_str());
     if (!s.musicaFazenda) std::cout << "[audio] musica falhou: " << Mix_GetError() << std::endl;
 }
 
