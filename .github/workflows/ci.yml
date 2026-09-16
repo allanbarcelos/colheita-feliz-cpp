@@ -53,17 +53,49 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
-          update: true
+          update: false
+          cache: true
           install: >-
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
+
+      - name: Pin mirrors and install SDL stack
+        run: |
+          set -euo pipefail
+          # ftp2.osuosl.org costuma abortar com "Operation too slow".
+          # repo.msys2.org (Cloudflare) é o primário oficial.
+          for list in /etc/pacman.d/mirrorlist.mingw /etc/pacman.d/mirrorlist.mingw32 /etc/pacman.d/mirrorlist.mingw64 /etc/pacman.d/mirrorlist.ucrt64 /etc/pacman.d/mirrorlist.clang64 /etc/pacman.d/mirrorlist.msys; do
+            [ -f "$list" ] || continue
+            case "$list" in
+              *msys)
+                printf 'Server = https://repo.msys2.org/msys/$arch\nServer = https://mirror.msys2.org/msys/$arch\n' > "$list"
+                ;;
+              *)
+                printf 'Server = https://repo.msys2.org/mingw/$repo\nServer = https://mirror.msys2.org/mingw/$repo\n' > "$list"
+                ;;
+            esac
+          done
+          grep -q '^DisableDownloadTimeout' /etc/pacman.conf \
+            || echo 'DisableDownloadTimeout' >> /etc/pacman.conf
+
+          pkgs=(
             mingw-w64-ucrt-x86_64-SDL2
             mingw-w64-ucrt-x86_64-SDL2_image
             mingw-w64-ucrt-x86_64-SDL2_mixer
             mingw-w64-ucrt-x86_64-SDL2_ttf
             mingw-w64-ucrt-x86_64-nlohmann-json
             mingw-w64-ucrt-x86_64-ntldd
+          )
+          for attempt in 1 2 3 4 5; do
+            if pacman -S --noconfirm --needed "${pkgs[@]}"; then
+              exit 0
+            fi
+            echo "::warning::pacman falhou (tentativa $attempt/5), esperando e tentando de novo"
+            sleep $((attempt * 20))
+          done
+          echo "::error::pacman não instalou o stack SDL após 5 tentativas"
+          exit 1
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
