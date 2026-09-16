@@ -68,6 +68,7 @@ add_dependencies(FazendaDosSonhos game)
 enable_testing()
 add_executable(test_logic tests/test_logic.cpp)
 target_include_directories(test_logic PRIVATE src)
+target_compile_definitions(test_logic PRIVATE SDL_MAIN_HANDLED)
 target_link_libraries(test_logic PRIVATE
     SDL2::SDL2
     SDL2_image::SDL2_image
@@ -75,4 +76,10 @@ target_link_libraries(test_logic PRIVATE
     SDL2_mixer::SDL2_mixer
     nlohmann_json::nlohmann_json
 )
+# SDL2::SDL2 no MinGW injeta -mwindows (subsistema GUI → WinMain).
+# O teste é um main() de console; força -mconsole depois das libs SDL.
+set_target_properties(test_logic PROPERTIES WIN32_EXECUTABLE FALSE)
+if(MINGW)
+    target_link_options(test_logic PRIVATE -mconsole)
+endif()
 add_test(NAME logic COMMAND test_logic)

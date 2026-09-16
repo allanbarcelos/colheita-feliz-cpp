@@ -1,3 +1,4 @@
+#define SDL_MAIN_HANDLED
 #include "Player.h"
 #include "Iso.h"
 #include "Crops.h"
